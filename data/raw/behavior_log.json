@@ -1,0 +1,51 @@
+[
+  {
+    "student_id": "20240101",
+    "event_type": "complete",
+    "video_id": "V001",
+    "duration": 1540,
+    "created_at": "2026-08-13T02:37:41.259634"
+  },
+  {
+    "student_id": "20240101",
+    "event_type": "like",
+    "video_id": "V001",
+    "duration": 0,
+    "created_at": "2026-08-14T02:37:41.259634"
+  },
+  {
+    "student_id": "20240101",
+    "event_type": "play",
+    "video_id": "V002",
+    "duration": 620,
+    "created_at": "2026-08-30T02:37:41.259634"
+  },
+  {
+    "student_id": "20240101",
+    "event_type": "favorite",
+    "video_id": "V002",
+    "duration": 0,
+    "created_at": "2026-08-31T02:37:41.259634"
+  },
+  {
+    "student_id": "20240101",
+    "event_type": "complete",
+    "video_id": "V012",
+    "duration": 860,
+    "created_at": "2026-08-26T02:37:41.259634"
+  },
+  {
+    "student_id": "20240102",
+    "event_type": "play",
+    "video_id": "V008",
+    "duration": 880,
+    "created_at": "2026-09-01T02:37:41.259634"
+  },
+  {
+    "student_id": "20240103",
+    "event_type": "play",
+    "video_id": "V011",
+    "duration": 740,
+    "created_at": "2026-09-02T02:37:41.259634"
+  }
+]

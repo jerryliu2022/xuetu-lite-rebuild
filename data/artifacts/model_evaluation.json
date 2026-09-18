@@ -1,0 +1,1073 @@
+{
+  "offline_train_report": {
+    "sample_count": 175,
+    "positive_rate": 0.1429,
+    "auc": 0.9475,
+    "feature_names": [
+      "log_popularity",
+      "rating",
+      "free_access",
+      "curriculum_graph",
+      "itemcf_similarity",
+      "platform_preference",
+      "course_downstream_value",
+      "major_alignment"
+    ],
+    "choice": "Hybrid recall + TF-IDF ItemCF + lightweight logistic ranker; CPU-only, no heavy GPU/vector DB dependency."
+  },
+  "leave_one_out": {
+    "method": "留一法验证：每专业账号有 5 条真实学习记录，每次遮住 1 条并在训练与推荐阶段都把它当未发生，用其余 4 条生成 Top-N，检查被遮课程能否被召回。",
+    "averages": {
+      "hit_rate@5": 0.8,
+      "hit_rate@9": 0.96
+    },
+    "per_student": {
+      "20240101": {
+        "student_id": "20240101",
+        "name": "李明",
+        "major": "计算机科学与技术",
+        "folds": [
+          {
+            "held_out_video_id": "BILI_10B8F6523A0E2E",
+            "context_count": 4,
+            "top5_hit": false,
+            "top9_hit": false,
+            "recommended_ids": [
+              "BILI_CF9288F549B859",
+              "BILI_5E472887F2ACE8",
+              "BILI_AC853B286AFF3B",
+              "BILI_7DB9A116221F90",
+              "BILI_B6AD7364042ECC",
+              "V015",
+              "BILI_964389917D5AA1",
+              "V012",
+              "BILI_51CB29AC15B00F"
+            ]
+          },
+          {
+            "held_out_video_id": "BILI_58FC01A260E199",
+            "context_count": 4,
+            "top5_hit": false,
+            "top9_hit": true,
+            "recommended_ids": [
+              "BILI_12AD66987F23FC",
+              "BILI_CF9288F549B859",
+              "BILI_964389917D5AA1",
+              "BILI_51CB29AC15B00F",
+              "BILI_AC853B286AFF3B",
+              "BILI_7DB9A116221F90",
+              "BILI_58FC01A260E199",
+              "V015",
+              "BILI_B6AD7364042ECC"
+            ]
+          },
+          {
+            "held_out_video_id": "BILI_7F01E846A9B3D0",
+            "context_count": 4,
+            "top5_hit": true,
+            "top9_hit": true,
+            "recommended_ids": [
+              "BILI_CF9288F549B859",
+              "BILI_5E472887F2ACE8",
+              "BILI_12AD66987F23FC",
+              "BILI_964389917D5AA1",
+              "BILI_7F01E846A9B3D0",
+              "BILI_51CB29AC15B00F",
+              "BILI_7DB9A116221F90",
+              "V015",
+              "BILI_B6AD7364042ECC"
+            ]
+          },
+          {
+            "held_out_video_id": "BILI_E3B728E3B37A81",
+            "context_count": 4,
+            "top5_hit": true,
+            "top9_hit": true,
+            "recommended_ids": [
+              "BILI_12AD66987F23FC",
+              "BILI_5E472887F2ACE8",
+              "BILI_964389917D5AA1",
+              "BILI_51CB29AC15B00F",
+              "BILI_E3B728E3B37A81",
+              "BILI_AC853B286AFF3B",
+              "BILI_CF9288F549B859",
+              "BILI_7DB9A116221F90",
+              "V015"
+            ]
+          },
+          {
+            "held_out_video_id": "BILI_ED3C43A90817CB",
+            "context_count": 4,
+            "top5_hit": true,
+            "top9_hit": true,
+            "recommended_ids": [
+              "BILI_ED3C43A90817CB",
+              "BILI_5E472887F2ACE8",
+              "BILI_12AD66987F23FC",
+              "BILI_CF9288F549B859",
+              "BILI_51CB29AC15B00F",
+              "BILI_964389917D5AA1",
+              "BILI_AC853B286AFF3B",
+              "BILI_7DB9A116221F90",
+              "V015"
+            ]
+          }
+        ],
+        "hit_rate@5": 0.6,
+        "hit_rate@9": 0.8,
+        "fold_count": 5
+      },
+      "20240102": {
+        "student_id": "20240102",
+        "name": "周然",
+        "major": "软件工程",
+        "folds": [
+          {
+            "held_out_video_id": "BILI_3808941B618459",
+            "context_count": 4,
+            "top5_hit": true,
+            "top9_hit": true,
+            "recommended_ids": [
+              "BILI_3808941B618459",
+              "BILI_8DB0644FF97815",
+              "BILI_6DB33A8B46C095",
+              "BILI_BAB045A64C6EC7",
+              "V010",
+              "V015",
+              "V012",
+              "V011",
+              "BILI_7F404DB8584580"
+            ]
+          },
+          {
+            "held_out_video_id": "BILI_7D2F244BB953C4",
+            "context_count": 4,
+            "top5_hit": false,
+            "top9_hit": true,
+            "recommended_ids": [
+              "BILI_8DB0644FF97815",
+              "BILI_6DB33A8B46C095",
+              "BILI_BAB045A64C6EC7",
+              "V010",
+              "V015",
+              "V012",
+              "V002",
+              "V011",
+              "BILI_7D2F244BB953C4"
+            ]
+          },
+          {
+            "held_out_video_id": "BILI_D8DCE1605FF876",
+            "context_count": 4,
+            "top5_hit": true,
+            "top9_hit": true,
+            "recommended_ids": [
+              "BILI_D8DCE1605FF876",
+              "BILI_8DB0644FF97815",
+              "BILI_BAB045A64C6EC7",
+              "V010",
+              "BILI_6DB33A8B46C095",
+              "V015",
+              "V012",
+              "V011",
+              "V002"
+            ]
+          },
+          {
+            "held_out_video_id": "BILI_DFEF3122A3952B",
+            "context_count": 4,
+            "top5_hit": false,
+            "top9_hit": true,
+            "recommended_ids": [
+              "BILI_8DB0644FF97815",
+              "BILI_6DB33A8B46C095",
+              "BILI_BAB045A64C6EC7",
+              "V010",
+              "V015",
+              "V012",
+              "V002",
+              "V011",
+              "BILI_DFEF3122A3952B"
+            ]
+          },
+          {
+            "held_out_video_id": "BILI_EA23C5AFEEAA4A",
+            "context_count": 4,
+            "top5_hit": false,
+            "top9_hit": true,
+            "recommended_ids": [
+              "BILI_8DB0644FF97815",
+              "BILI_6DB33A8B46C095",
+              "BILI_BAB045A64C6EC7",
+              "V002",
+              "V012",
+              "BILI_EA23C5AFEEAA4A",
+              "V015",
+              "V011",
+              "V010"
+            ]
+          }
+        ],
+        "hit_rate@5": 0.4,
+        "hit_rate@9": 1.0,
+        "fold_count": 5
+      },
+      "20240103": {
+        "student_id": "20240103",
+        "name": "陈思",
+        "major": "数据科学与大数据技术",
+        "folds": [
+          {
+            "held_out_video_id": "BILI_01CC5F3637A7A9",
+            "context_count": 4,
+            "top5_hit": true,
+            "top9_hit": true,
+            "recommended_ids": [
+              "BILI_D3A856C6A7401A",
+              "BILI_01CC5F3637A7A9",
+              "V002",
+              "BILI_B2702BE515F75D",
+              "V012",
+              "BILI_7628C40AB96D80",
+              "V015",
+              "V011",
+              "BILI_EA9FAEDA1460C8"
+            ]
+          },
+          {
+            "held_out_video_id": "BILI_1640277F68592B",
+            "context_count": 4,
+            "top5_hit": true,
+            "top9_hit": true,
+            "recommended_ids": [
+              "BILI_D3A856C6A7401A",
+              "BILI_1640277F68592B",
+              "V002",
+              "BILI_B2702BE515F75D",
+              "V012",
+              "BILI_7628C40AB96D80",
+              "V015",
+              "V011",
+              "BILI_EA9FAEDA1460C8"
+            ]
+          },
+          {
+            "held_out_video_id": "BILI_44059354DE85E2",
+            "context_count": 4,
+            "top5_hit": true,
+            "top9_hit": true,
+            "recommended_ids": [
+              "BILI_44059354DE85E2",
+              "BILI_D3A856C6A7401A",
+              "V002",
+              "BILI_B2702BE515F75D",
+              "V012",
+              "V015",
+              "BILI_7628C40AB96D80",
+              "V011",
+              "BILI_EA9FAEDA1460C8"
+            ]
+          },
+          {
+            "held_out_video_id": "BILI_466663CDAD8FEA",
+            "context_count": 4,
+            "top5_hit": true,
+            "top9_hit": true,
+            "recommended_ids": [
+              "BILI_D3A856C6A7401A",
+              "BILI_466663CDAD8FEA",
+              "BILI_B2702BE515F75D",
+              "V002",
+              "V012",
+              "BILI_7628C40AB96D80",
+              "V015",
+              "V011",
+              "BILI_EA9FAEDA1460C8"
+            ]
+          },
+          {
+            "held_out_video_id": "BILI_5F99E4C439597D",
+            "context_count": 4,
+            "top5_hit": true,
+            "top9_hit": true,
+            "recommended_ids": [
+              "BILI_5F99E4C439597D",
+              "BILI_D3A856C6A7401A",
+              "BILI_B2702BE515F75D",
+              "V002",
+              "V012",
+              "BILI_7628C40AB96D80",
+              "V015",
+              "V011",
+              "BILI_EA9FAEDA1460C8"
+            ]
+          }
+        ],
+        "hit_rate@5": 1.0,
+        "hit_rate@9": 1.0,
+        "fold_count": 5
+      },
+      "20240104": {
+        "student_id": "20240104",
+        "name": "林澈",
+        "major": "人工智能",
+        "folds": [
+          {
+            "held_out_video_id": "BILI_6955895192CEBC",
+            "context_count": 4,
+            "top5_hit": true,
+            "top9_hit": true,
+            "recommended_ids": [
+              "BILI_6955895192CEBC",
+              "BILI_F5252FF70F0F31",
+              "BILI_8A7125E24EEC41",
+              "BILI_C23F7465CC0C19",
+              "BILI_E3B5C5057D62CE",
+              "BILI_907038619769A0",
+              "V015",
+              "V012",
+              "V003"
+            ]
+          },
+          {
+            "held_out_video_id": "BILI_826783A1E94780",
+            "context_count": 4,
+            "top5_hit": true,
+            "top9_hit": true,
+            "recommended_ids": [
+              "BILI_F5252FF70F0F31",
+              "BILI_8A7125E24EEC41",
+              "BILI_C23F7465CC0C19",
+              "BILI_826783A1E94780",
+              "BILI_E3B5C5057D62CE",
+              "V015",
+              "BILI_907038619769A0",
+              "V012",
+              "V003"
+            ]
+          },
+          {
+            "held_out_video_id": "BILI_8D294B0EFB1288",
+            "context_count": 4,
+            "top5_hit": true,
+            "top9_hit": true,
+            "recommended_ids": [
+              "BILI_8D294B0EFB1288",
+              "BILI_F5252FF70F0F31",
+              "BILI_8A7125E24EEC41",
+              "BILI_C23F7465CC0C19",
+              "BILI_E3B5C5057D62CE",
+              "BILI_907038619769A0",
+              "V015",
+              "V012",
+              "V003"
+            ]
+          },
+          {
+            "held_out_video_id": "BILI_A195FA8AC4315A",
+            "context_count": 4,
+            "top5_hit": true,
+            "top9_hit": true,
+            "recommended_ids": [
+              "BILI_A195FA8AC4315A",
+              "BILI_F5252FF70F0F31",
+              "BILI_C23F7465CC0C19",
+              "BILI_8A7125E24EEC41",
+              "BILI_E3B5C5057D62CE",
+              "BILI_907038619769A0",
+              "V015",
+              "V012",
+              "V011"
+            ]
+          },
+          {
+            "held_out_video_id": "BILI_B443AFA0B672A5",
+            "context_count": 4,
+            "top5_hit": true,
+            "top9_hit": true,
+            "recommended_ids": [
+              "BILI_B443AFA0B672A5",
+              "BILI_8A7125E24EEC41",
+              "BILI_F5252FF70F0F31",
+              "BILI_C23F7465CC0C19",
+              "BILI_E3B5C5057D62CE",
+              "V015",
+              "BILI_907038619769A0",
+              "V012",
+              "V003"
+            ]
+          }
+        ],
+        "hit_rate@5": 1.0,
+        "hit_rate@9": 1.0,
+        "fold_count": 5
+      },
+      "20240105": {
+        "student_id": "20240105",
+        "name": "赵程",
+        "major": "网络工程",
+        "folds": [
+          {
+            "held_out_video_id": "BILI_15B95378578ECE",
+            "context_count": 4,
+            "top5_hit": true,
+            "top9_hit": true,
+            "recommended_ids": [
+              "BILI_15B95378578ECE",
+              "BILI_5A6A6551AB5D1D",
+              "BILI_98B1FBDB1BAC92",
+              "BILI_36D60C25B78BB4",
+              "BILI_ACC735A71CBA23",
+              "BILI_4D8E69B59A0E4C",
+              "BILI_E1F6DDC1EDEA77",
+              "V015",
+              "V012"
+            ]
+          },
+          {
+            "held_out_video_id": "BILI_6C45A9D82572C3",
+            "context_count": 4,
+            "top5_hit": true,
+            "top9_hit": true,
+            "recommended_ids": [
+              "BILI_6C45A9D82572C3",
+              "BILI_5A6A6551AB5D1D",
+              "BILI_36D60C25B78BB4",
+              "BILI_98B1FBDB1BAC92",
+              "BILI_ACC735A71CBA23",
+              "BILI_4D8E69B59A0E4C",
+              "BILI_E1F6DDC1EDEA77",
+              "V015",
+              "V012"
+            ]
+          },
+          {
+            "held_out_video_id": "BILI_76FCC77E58D2C2",
+            "context_count": 4,
+            "top5_hit": true,
+            "top9_hit": true,
+            "recommended_ids": [
+              "BILI_76FCC77E58D2C2",
+              "BILI_98B1FBDB1BAC92",
+              "BILI_ACC735A71CBA23",
+              "BILI_4D8E69B59A0E4C",
+              "BILI_36D60C25B78BB4",
+              "BILI_5A6A6551AB5D1D",
+              "V015",
+              "V012",
+              "V011"
+            ]
+          },
+          {
+            "held_out_video_id": "BILI_AD0E60608097E1",
+            "context_count": 4,
+            "top5_hit": true,
+            "top9_hit": true,
+            "recommended_ids": [
+              "BILI_AD0E60608097E1",
+              "BILI_5A6A6551AB5D1D",
+              "BILI_98B1FBDB1BAC92",
+              "BILI_36D60C25B78BB4",
+              "BILI_ACC735A71CBA23",
+              "BILI_4D8E69B59A0E4C",
+              "BILI_E1F6DDC1EDEA77",
+              "V015",
+              "V012"
+            ]
+          },
+          {
+            "held_out_video_id": "BILI_C2037075D2F548",
+            "context_count": 4,
+            "top5_hit": true,
+            "top9_hit": true,
+            "recommended_ids": [
+              "BILI_5A6A6551AB5D1D",
+              "BILI_C2037075D2F548",
+              "BILI_98B1FBDB1BAC92",
+              "BILI_36D60C25B78BB4",
+              "BILI_ACC735A71CBA23",
+              "BILI_4D8E69B59A0E4C",
+              "BILI_E1F6DDC1EDEA77",
+              "V015",
+              "V012"
+            ]
+          }
+        ],
+        "hit_rate@5": 1.0,
+        "hit_rate@9": 1.0,
+        "fold_count": 5
+      }
+    }
+  },
+  "ranking_eval": {
+    "method": "用学习进度 >= 25% 的课程作为弱正样本，对专业路径推荐做 Precision/Recall/HitRate/NDCG@5；后续接入真实曝光点击后应按时间切分留出集。",
+    "averages": {
+      "precision@5": 0.0,
+      "recall@5": 0.0,
+      "hit_rate@5": 0.0,
+      "ndcg@5": 0.0,
+      "catalog_coverage": 0.2931,
+      "platform_diversity": 0.9333
+    },
+    "per_student": {
+      "20240101": {
+        "name": "李明",
+        "major": "计算机科学与技术",
+        "grade": "大二",
+        "precision@5": 0.0,
+        "recall@5": 0.0,
+        "hit_rate@5": 0.0,
+        "ndcg@5": 0.0
+      },
+      "20240102": {
+        "name": "周然",
+        "major": "软件工程",
+        "grade": "大三",
+        "precision@5": 0.0,
+        "recall@5": 0.0,
+        "hit_rate@5": 0.0,
+        "ndcg@5": 0.0
+      },
+      "20240103": {
+        "name": "陈思",
+        "major": "数据科学与大数据技术",
+        "grade": "大二",
+        "precision@5": 0.0,
+        "recall@5": 0.0,
+        "hit_rate@5": 0.0,
+        "ndcg@5": 0.0
+      },
+      "20240104": {
+        "name": "林澈",
+        "major": "人工智能",
+        "grade": "大二",
+        "precision@5": 0.0,
+        "recall@5": 0.0,
+        "hit_rate@5": 0.0,
+        "ndcg@5": 0.0
+      },
+      "20240105": {
+        "name": "赵程",
+        "major": "网络工程",
+        "grade": "大二",
+        "precision@5": 0.0,
+        "recall@5": 0.0,
+        "hit_rate@5": 0.0,
+        "ndcg@5": 0.0
+      }
+    }
+  },
+  "student_accounts": [
+    {
+      "student_id": "20240101",
+      "name": "李明",
+      "major": "计算机科学与技术",
+      "grade": "大二",
+      "semester": 3,
+      "positive_count": 4,
+      "recommended_count": 9,
+      "password": "123456"
+    },
+    {
+      "student_id": "20240102",
+      "name": "周然",
+      "major": "软件工程",
+      "grade": "大三",
+      "semester": 5,
+      "positive_count": 4,
+      "recommended_count": 9,
+      "password": "123456"
+    },
+    {
+      "student_id": "20240103",
+      "name": "陈思",
+      "major": "数据科学与大数据技术",
+      "grade": "大二",
+      "semester": 3,
+      "positive_count": 4,
+      "recommended_count": 9,
+      "password": "123456"
+    },
+    {
+      "student_id": "20240104",
+      "name": "林澈",
+      "major": "人工智能",
+      "grade": "大二",
+      "semester": 4,
+      "positive_count": 4,
+      "recommended_count": 9,
+      "password": "123456"
+    },
+    {
+      "student_id": "20240105",
+      "name": "赵程",
+      "major": "网络工程",
+      "grade": "大二",
+      "semester": 4,
+      "positive_count": 4,
+      "recommended_count": 9,
+      "password": "123456"
+    }
+  ],
+  "effect_improvement_plan": [
+    "扩大真实曝光日志，按 impression-click-complete 多目标训练。",
+    "按专业、年级、学期分桶评估，避免只优化热门课程。",
+    "加入 MMR 多样性重排，减少同平台或同主题挤占。",
+    "上线前做 A/B 测试：完成率、点击率、收藏率、学习时长、人均覆盖课程数。",
+    "对考研数据按年份做版本评估，避免过期科目误推荐。"
+  ],
+  "data_quality": {
+    "truth_statement": "数据库同时保留演示种子数据和真实公开采集数据；只有带 source_collected_at 且通过时间窗口校验的数据才计入真实采集统计。被验证码、登录、空壳页面或网络错误阻断的来源不会被计入成功。",
+    "source_policies": [
+      {
+        "domain": "视频课程",
+        "sources": [
+          "MOOC",
+          "B站",
+          "极客时间"
+        ],
+        "live_collected": true,
+        "storage": "video / video_episode",
+        "target_scale": "本次任务：B站、MOOC、极客时间各 50 门；仅保留近 6 年且能验证日期的课程",
+        "update_frequency": "每日 02:00 增量，周日全量校验",
+        "live_source_status": "B站真实采集已入库且覆盖 5 个专业；MOOC/极客时间公开搜索当前仅返回 JS 空壳或未收录课程页，无法验证近 6 年课程日期，报告会如实标记未达标",
+        "risk": "需遵守平台 robots、版权和反爬策略；极客时间仅展示和跳转，不绕过付费墙"
+      },
+      {
+        "domain": "招聘岗位",
+        "sources": [
+          "拉勾网",
+          "BOSS直聘",
+          "牛客网"
+        ],
+        "live_collected": false,
+        "storage": "job / skill_course_map",
+        "target_scale": "本次任务：拉勾网+BOSS直聘合计 200 条；仅保留近 2 年岗位",
+        "update_frequency": "每日 04:00 增量，岗位下线 7 天后归档",
+        "live_source_status": "拉勾网/BOSS直聘公开搜索当前返回阿里云验证码页，自动化脚本无法合法取得岗位卡片；需平台授权接口或人工导出后才能入库",
+        "risk": "招聘数据变动快，正式采集应使用授权接口或公开合规页面"
+      },
+      {
+        "domain": "考研科目",
+        "sources": [
+          "高校研究生招生目录",
+          "研招网公开信息"
+        ],
+        "live_collected": true,
+        "storage": "exam_subject",
+        "target_scale": "核对湖南全部 29 个研招单位；按最新官方硕士目录只保存真实开设的院校-专业组合，不伪造未开设专业的空科目",
+        "update_frequency": "每年招生目录发布季每日检查，其余月份每周检查",
+        "live_source_status": "研招网官方硕士目录真实采集已入库；只保存最新年份实际存在的院校-专业科目组合",
+        "risk": "院校科目按年份变化，推荐结果必须带数据年份和更新时间"
+      }
+    ],
+    "major_catalog": [
+      "计算机科学与技术",
+      "软件工程",
+      "数据科学与大数据技术",
+      "人工智能",
+      "网络工程",
+      "信息安全",
+      "物联网工程",
+      "电子信息工程",
+      "自动化",
+      "统计学",
+      "数学与应用数学",
+      "电子商务"
+    ],
+    "project_majors": [
+      "计算机科学与技术",
+      "软件工程",
+      "人工智能",
+      "数据科学与大数据技术",
+      "网络工程"
+    ],
+    "video": {
+      "total_videos": 116,
+      "total_episodes": 1787,
+      "live_videos": 97,
+      "live_recent_videos": 97,
+      "target_per_platform": 50,
+      "target_total": 150,
+      "platform_breakdown": [
+        {
+          "platform": "B站",
+          "count": 104,
+          "popularity": 30035761,
+          "live_recent_count": 97
+        },
+        {
+          "platform": "MOOC",
+          "count": 7,
+          "popularity": 888000,
+          "live_recent_count": 0
+        },
+        {
+          "platform": "极客时间",
+          "count": 5,
+          "popularity": 282000,
+          "live_recent_count": 0
+        }
+      ],
+      "per_major": {
+        "计算机科学与技术": 55,
+        "软件工程": 10,
+        "人工智能": 10,
+        "数据科学与大数据技术": 10,
+        "网络工程": 12
+      },
+      "covered_majors": [
+        "人工智能",
+        "数据科学与大数据技术",
+        "网络工程",
+        "计算机科学与技术",
+        "软件工程"
+      ],
+      "target_major_count": 5,
+      "major_coverage_rate": 1.0,
+      "all_target_majors_covered": true,
+      "all_majors_covered": true,
+      "data_window": "2020-09-05 至 2026-09-04",
+      "quality_ok": true
+    },
+    "job": {
+      "total_jobs": 4,
+      "live_recent_jobs": 0,
+      "target_total": 200,
+      "per_source": [
+        {
+          "source": "BOSS直聘",
+          "count": 1
+        },
+        {
+          "source": "拉勾网",
+          "count": 2
+        },
+        {
+          "source": "牛客网",
+          "count": 1
+        }
+      ],
+      "live_per_source": [],
+      "lagou_count": 2,
+      "boss_count": 1,
+      "covered_majors": [
+        "数据科学与大数据技术",
+        "计算机科学与技术",
+        "软件工程"
+      ],
+      "per_major": {
+        "计算机科学与技术": 4,
+        "软件工程": 2,
+        "人工智能": 0,
+        "数据科学与大数据技术": 2,
+        "网络工程": 0
+      },
+      "target_major_count": 5,
+      "major_coverage_rate": 0.6,
+      "all_target_majors_covered": false,
+      "all_majors_covered": false,
+      "data_window": "2024-09-04 至 2026-09-04",
+      "persisted": true,
+      "quality_ok": false
+    },
+    "exam": {
+      "total_school_major_subjects": 31,
+      "demo_seed_school_major_subjects": 4,
+      "target_school_count": 29,
+      "theoretical_target_school_major_subjects": 145,
+      "official_target_school_major_subjects": 31,
+      "target_school_major_subjects": 31,
+      "latest_year": 2027,
+      "latest_records": 31,
+      "school_count": 15,
+      "schools": [
+        "中南大学",
+        "中南林业科技大学",
+        "南华大学",
+        "吉首大学",
+        "国防科技大学",
+        "湖南农业大学",
+        "湖南大学",
+        "湖南工业大学",
+        "湖南工商大学",
+        "湖南师范大学",
+        "湖南理工学院",
+        "湖南科技大学",
+        "湘潭大学",
+        "衡阳师范学院",
+        "长沙理工大学"
+      ],
+      "covered_majors": [
+        "人工智能",
+        "数据科学与大数据技术",
+        "网络工程",
+        "计算机科学与技术",
+        "软件工程"
+      ],
+      "target_major_count": 5,
+      "major_coverage_rate": 1.0,
+      "all_target_majors_covered": true,
+      "all_majors_covered": true,
+      "all_target_schools_covered": false,
+      "coverage_explanation": "已按研招网 2027 官方硕士目录核对湖南全部 29 个招生单位；只保存真实开设这 5 类可报考专业的院校组合，未开设的不伪造空科目记录。",
+      "versioning_required": true,
+      "quality_ok": true
+    },
+    "freshness": {
+      "generated_at": "2026-09-04T11:15:32",
+      "demo_snapshot_date": "2026-09-04",
+      "next_video_incremental": "2026-09-05T02:00:00",
+      "next_job_incremental": "2026-09-05T04:00:00",
+      "next_exam_check": "2026-09-11T03:00:00"
+    },
+    "collection_history": [
+      {
+        "domain": "exam",
+        "source": "湖南研招单位-研招网官方硕士目录",
+        "target_count": 31,
+        "inserted_count": 31,
+        "skipped_count": 0,
+        "ok": 1,
+        "message": "研招网2027官方硕士目录：湖南实际开设 31 个可报考学校-专业组合，理论全矩阵为 145；成功保存 31 条，未解析 0 个",
+        "started_at": "2026-09-04T10:35:03",
+        "finished_at": "2026-09-04T10:36:40",
+        "new_count": 0,
+        "updated_count": 31
+      },
+      {
+        "domain": "job",
+        "source": "拉勾网+BOSS直聘",
+        "target_count": 200,
+        "inserted_count": 0,
+        "skipped_count": 0,
+        "ok": 0,
+        "message": "拉勾网:Java 后端:公开页面返回验证码/风控页，未获得业务数据; BOSS直聘:Python 开发:公开页面返回验证码/风控页，未获得业务数据",
+        "started_at": "2026-09-04T10:35:03",
+        "finished_at": "2026-09-04T10:36:40",
+        "new_count": 0,
+        "updated_count": 0
+      },
+      {
+        "domain": "video",
+        "source": "极客时间",
+        "target_count": 50,
+        "inserted_count": 0,
+        "skipped_count": 0,
+        "ok": 0,
+        "message": "未达到目标数量：公开搜索未返回可回读课程页，或课程页无法验证近 6 年公开日期（需要平台授权接口/导出文件）",
+        "started_at": "2026-09-04T10:35:03",
+        "finished_at": "2026-09-04T10:36:40",
+        "new_count": 0,
+        "updated_count": 0
+      },
+      {
+        "domain": "video",
+        "source": "MOOC",
+        "target_count": 50,
+        "inserted_count": 0,
+        "skipped_count": 0,
+        "ok": 0,
+        "message": "未达到目标数量：公开搜索未返回可回读课程页，或课程页无法验证近 6 年公开日期（需要平台授权接口/导出文件）",
+        "started_at": "2026-09-04T10:35:03",
+        "finished_at": "2026-09-04T10:36:40",
+        "new_count": 0,
+        "updated_count": 0
+      },
+      {
+        "domain": "video",
+        "source": "B站",
+        "target_count": 50,
+        "inserted_count": 50,
+        "skipped_count": 45,
+        "ok": 1,
+        "message": "ok",
+        "started_at": "2026-09-04T10:35:03",
+        "finished_at": "2026-09-04T10:36:40",
+        "new_count": 2,
+        "updated_count": 48
+      },
+      {
+        "domain": "exam",
+        "source": "湖南研招单位-研招网官方硕士目录",
+        "target_count": 31,
+        "inserted_count": 31,
+        "skipped_count": 0,
+        "ok": 1,
+        "message": "研招网2027官方硕士目录：湖南实际开设 31 个可报考学校-专业组合，理论全矩阵为 145；成功保存 31 条，未解析 0 个",
+        "started_at": "2026-09-04T10:28:35",
+        "finished_at": "2026-09-04T10:29:42",
+        "new_count": 0,
+        "updated_count": 31
+      },
+      {
+        "domain": "video",
+        "source": "B站",
+        "target_count": 50,
+        "inserted_count": 50,
+        "skipped_count": 44,
+        "ok": 1,
+        "message": "ok",
+        "started_at": "2026-09-04T10:28:35",
+        "finished_at": "2026-09-04T10:29:42",
+        "new_count": 44,
+        "updated_count": 6
+      },
+      {
+        "domain": "exam",
+        "source": "湖南研招单位-研招网官方硕士目录",
+        "target_count": 31,
+        "inserted_count": 31,
+        "skipped_count": 0,
+        "ok": 1,
+        "message": "研招网2027官方硕士目录：湖南实际开设 31 个可报考学校-专业组合，理论全矩阵为 145；成功保存 31 条，未解析 0 个",
+        "started_at": "2026-09-04T10:15:41",
+        "finished_at": "2026-09-04T10:18:34",
+        "new_count": 0,
+        "updated_count": 31
+      },
+      {
+        "domain": "job",
+        "source": "拉勾网+BOSS直聘",
+        "target_count": 2,
+        "inserted_count": 0,
+        "skipped_count": 0,
+        "ok": 0,
+        "message": "拉勾网:Java 后端:公开页面返回验证码/风控页，未获得业务数据; BOSS直聘:Java 后端:公开页面返回验证码/风控页，未获得业务数据; 拉勾网:Python 开发:公开页面返回验证码/风控页，未获得业务数据; BOSS直聘:Python 开发:公开页面返回验证码/风控页，未获得业务数据; 拉勾网:算法工程师:公开页面返回验证码/风控页，未获得业务数据",
+        "started_at": "2026-09-04T10:15:41",
+        "finished_at": "2026-09-04T10:18:34",
+        "new_count": 0,
+        "updated_count": 0
+      },
+      {
+        "domain": "video",
+        "source": "极客时间",
+        "target_count": 3,
+        "inserted_count": 0,
+        "skipped_count": 0,
+        "ok": 0,
+        "message": "极客时间:计算机科学与技术:数据结构:www.bing.com:<urlopen error [Errno 2] No such file or directory>; 极客时间:计算机科学与技术:Java:www.bing.com:<urlopen error [Errno 2] No such file or directory>; 极客时间:计算机科学与技术:算法:www.bing.com:<urlopen error [Errno 2] No such file or directory>",
+        "started_at": "2026-09-04T10:15:41",
+        "finished_at": "2026-09-04T10:18:34",
+        "new_count": 0,
+        "updated_count": 0
+      },
+      {
+        "domain": "video",
+        "source": "MOOC",
+        "target_count": 3,
+        "inserted_count": 0,
+        "skipped_count": 0,
+        "ok": 0,
+        "message": "MOOC:软件工程:数据结构:www.bing.com:<urlopen error [Errno 2] No such file or directory>",
+        "started_at": "2026-09-04T10:15:41",
+        "finished_at": "2026-09-04T10:18:34",
+        "new_count": 0,
+        "updated_count": 0
+      },
+      {
+        "domain": "video",
+        "source": "B站",
+        "target_count": 3,
+        "inserted_count": 3,
+        "skipped_count": 4,
+        "ok": 1,
+        "message": "ok",
+        "started_at": "2026-09-04T10:15:41",
+        "finished_at": "2026-09-04T10:18:34",
+        "new_count": 0,
+        "updated_count": 3
+      }
+    ],
+    "latest_collection": {
+      "available": true,
+      "started_at": "2026-09-04T10:35:03",
+      "finished_at": "2026-09-04T10:36:40",
+      "success": false,
+      "target_count": 381,
+      "processed_count": 81,
+      "new_count": 2,
+      "updated_count": 79,
+      "results": [
+        {
+          "id": 39,
+          "domain": "video",
+          "source": "B站",
+          "target_count": 50,
+          "inserted_count": 50,
+          "skipped_count": 45,
+          "ok": 1,
+          "message": "ok",
+          "started_at": "2026-09-04T10:35:03",
+          "finished_at": "2026-09-04T10:36:40",
+          "new_count": 2,
+          "updated_count": 48
+        },
+        {
+          "id": 40,
+          "domain": "video",
+          "source": "MOOC",
+          "target_count": 50,
+          "inserted_count": 0,
+          "skipped_count": 0,
+          "ok": 0,
+          "message": "未达到目标数量：公开搜索未返回可回读课程页，或课程页无法验证近 6 年公开日期（需要平台授权接口/导出文件）",
+          "started_at": "2026-09-04T10:35:03",
+          "finished_at": "2026-09-04T10:36:40",
+          "new_count": 0,
+          "updated_count": 0
+        },
+        {
+          "id": 41,
+          "domain": "video",
+          "source": "极客时间",
+          "target_count": 50,
+          "inserted_count": 0,
+          "skipped_count": 0,
+          "ok": 0,
+          "message": "未达到目标数量：公开搜索未返回可回读课程页，或课程页无法验证近 6 年公开日期（需要平台授权接口/导出文件）",
+          "started_at": "2026-09-04T10:35:03",
+          "finished_at": "2026-09-04T10:36:40",
+          "new_count": 0,
+          "updated_count": 0
+        },
+        {
+          "id": 42,
+          "domain": "job",
+          "source": "拉勾网+BOSS直聘",
+          "target_count": 200,
+          "inserted_count": 0,
+          "skipped_count": 0,
+          "ok": 0,
+          "message": "拉勾网:Java 后端:公开页面返回验证码/风控页，未获得业务数据; BOSS直聘:Python 开发:公开页面返回验证码/风控页，未获得业务数据",
+          "started_at": "2026-09-04T10:35:03",
+          "finished_at": "2026-09-04T10:36:40",
+          "new_count": 0,
+          "updated_count": 0
+        },
+        {
+          "id": 43,
+          "domain": "exam",
+          "source": "湖南研招单位-研招网官方硕士目录",
+          "target_count": 31,
+          "inserted_count": 31,
+          "skipped_count": 0,
+          "ok": 1,
+          "message": "研招网2027官方硕士目录：湖南实际开设 31 个可报考学校-专业组合，理论全矩阵为 145；成功保存 31 条，未解析 0 个",
+          "started_at": "2026-09-04T10:35:03",
+          "finished_at": "2026-09-04T10:36:40",
+          "new_count": 0,
+          "updated_count": 31
+        }
+      ]
+    },
+    "report_file": "C:\\Users\\Administrator\\Documents\\remotion\\xuetu-lite-rebuild\\data\\artifacts\\live_collection_report.json",
+    "readiness": {
+      "real_collection_ready": true,
+      "full_major_coverage_ready": false,
+      "full_target_success": false,
+      "reason": "目标源全部达到本次采集数量且五个目标专业均有有效数据后才标记为达标。"
+    }
+  },
+  "major_catalog_size": 12
+}

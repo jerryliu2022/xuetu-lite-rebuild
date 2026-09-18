@@ -1,0 +1,35 @@
+[
+  {
+    "student_id": "20240101",
+    "name": "李明",
+    "school": "江城大学",
+    "major": "计算机科学与技术",
+    "grade": "大二",
+    "semester": 3,
+    "level": 6,
+    "xp": 1280,
+    "next_xp": 1500
+  },
+  {
+    "student_id": "20240102",
+    "name": "周然",
+    "school": "江城大学",
+    "major": "软件工程",
+    "grade": "大三",
+    "semester": 5,
+    "level": 7,
+    "xp": 1640,
+    "next_xp": 2100
+  },
+  {
+    "student_id": "20240103",
+    "name": "陈思",
+    "school": "江城大学",
+    "major": "数据科学与大数据技术",
+    "grade": "大二",
+    "semester": 3,
+    "level": 5,
+    "xp": 930,
+    "next_xp": 1200
+  }
+]

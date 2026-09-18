@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<!--
+  知识点：表单提交 FormData + 真实登录接口
+  归属：前端 + 后端
+  源码出处：frontend/app.js:94-105  登录表单 submit 处理
+           frontend/app.js:96      const data = Object.fromEntries(new FormData(event.target))
+           backend/app.py:119-125  @app.post("/api/login")
+
+  完整链路演示：
+    用户在表单里输入学号密码
+      → 前端 FormData 收集成对象
+      → fetch POST 提交 JSON 到 /api/login
+      → 后端查 student 表校验，返回 {token, student}
+      → 前端把 student_id 存进 sessionStorage，跳转到主界面
+
+  这里会对正在运行的真实服务发请求，成功失败都能看到。
+-->
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>FormData 表单与登录接口</title>
+  <style>
+    body { font-family: "Microsoft YaHei", sans-serif; padding: 24px; background: #f6f7fb; color: #1f2430; }
+    form { background: #fff; padding: 22px; border-radius: 12px; max-width: 380px;
+           box-shadow: 0 2px 12px rgba(0,0,0,.07); }
+    label { display: block; margin: 12px 0 6px; font-size: 14px; color: #5f6672; }
+    input { width: 100%; padding: 9px 11px; border: 1px solid #cfd4e0;
+            border-radius: 8px; box-sizing: border-box; font-size: 14px; }
+    button { width: 100%; padding: 10px; margin-top: 16px; border: none; border-radius: 8px;
+             background: #3b6cf6; color: #fff; font-size: 15px; cursor: pointer; }
+    button:hover { background: #2c57d1; }
+    .result { margin-top: 16px; padding: 14px; border-radius: 10px; font-size: 13px; }
+    .ok { background: #e6f4ea; color: #137333; }
+    .err { background: #fce8e6; color: #c5221f; }
+    pre { background: #1e2430; color: #d5f5e3; padding: 14px; border-radius: 10px;
+          max-height: 260px; overflow: auto; font-size: 12px; margin-top: 12px; }
+    .tip { font-size: 13px; color: #7a7f8c; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h3>FormData + POST /api/login</h3>
+
+  <form id="loginForm">
+    <label>学号</label>
+    <input name="student_id" value="20240101" />
+    <label>密码</label>
+    <input name="password" type="password" value="123456" />
+    <button type="submit">登 录</button>
+  </form>
+
+  <div id="result"></div>
+  <pre id="raw">后端原始返回会显示在这里</pre>
+
+  <p class="tip">演示账号：20240101 ~ 20240105，密码统一 123456。
+    故意输错密码可以看到后端返回的 401 错误信息。</p>
+
+  <script>
+    const BASE = "http://127.0.0.1:8765";
+
+    document.getElementById("loginForm").addEventListener("submit", async (event) => {
+      // 关键：阻止表单默认的「提交并刷新整页」行为，SPA 不能刷新
+      event.preventDefault();
+
+      // new FormData(form) 会自动收集所有带 name 属性的输入框
+      // Object.fromEntries 再把 FormData 变成普通对象 {student_id: "...", password: "..."}
+      // 源码出处：frontend/app.js:96
+      const data = Object.fromEntries(new FormData(event.target));
+
+      const resultBox = document.getElementById("result");
+      const rawBox = document.getElementById("raw");
+      resultBox.className = "result";
+      resultBox.textContent = "登录中...";
+      rawBox.textContent = "";
+
+      try {
+        // POST 请求要三样：method、headers 说明是 JSON、body 把对象转成字符串
+        const res = await fetch(`${BASE}/api/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+        const json = await res.json();
+
+        rawBox.textContent = JSON.stringify(json, null, 2);
+
+        if (!res.ok) {
+          // 后端 raise HTTPException(401) 时会返回 {"detail": "..."}，见 app.py:124
+          resultBox.className = "result err";
+          resultBox.textContent = "登录失败：" + (json.detail || res.status);
+          return;
+        }
+
+        resultBox.className = "result ok";
+        resultBox.innerHTML =
+          `登录成功！<br />姓名：${json.student.name}<br />`
+          + `专业：${json.student.major}<br />token：${json.token}`;
+
+        // 真实项目这一步会把学号存起来，刷新页面也不用重新登录
+        // 源码出处：frontend/app.js:100 sessionStorage.setItem("studentId", ...)
+        sessionStorage.setItem("studentId", json.student.student_id);
+      } catch (e) {
+        resultBox.className = "result err";
+        resultBox.textContent = "请求失败：" + e.message;
+        rawBox.textContent = "确认主项目是否已启动：python -m uvicorn backend.app:app --port 8765";
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,58 @@
+[
+  {
+    "job_id": "J001",
+    "title": "Java 后端开发工程师",
+    "company": "腾讯科技",
+    "city": "深圳",
+    "salary": "18-28K",
+    "fresh": "14薪",
+    "major_match": "高度匹配",
+    "required_major": "计算机科学与技术,软件工程",
+    "skills": "Java,Spring Boot,MySQL,Redis,数据结构与算法",
+    "requirement": "熟悉 Java 基础、Spring Boot、MySQL 索引与事务，具备良好的数据结构与算法能力。",
+    "source": "拉勾网",
+    "source_url": "https://www.lagou.com/"
+  },
+  {
+    "job_id": "J002",
+    "title": "数据分析师",
+    "company": "字节跳动",
+    "city": "北京",
+    "salary": "15-25K",
+    "fresh": "13薪",
+    "major_match": "一般匹配",
+    "required_major": "统计学,计算机科学与技术,数据科学与大数据技术",
+    "skills": "SQL,Python,统计分析,机器学习,可视化",
+    "requirement": "理解业务指标，熟练使用 SQL 和统计方法，能够构建基础预测模型。",
+    "source": "BOSS直聘",
+    "source_url": "https://www.zhipin.com/"
+  },
+  {
+    "job_id": "J003",
+    "title": "前端开发工程师",
+    "company": "美团",
+    "city": "上海",
+    "salary": "16-26K",
+    "fresh": "14薪",
+    "major_match": "相关延伸",
+    "required_major": "计算机科学与技术,软件工程",
+    "skills": "JavaScript,TypeScript,React,工程化,计算机网络",
+    "requirement": "掌握现代前端框架、工程化工具链与 HTTP 网络基础。",
+    "source": "拉勾网",
+    "source_url": "https://www.lagou.com/"
+  },
+  {
+    "job_id": "J004",
+    "title": "推荐算法实习生",
+    "company": "快手",
+    "city": "北京",
+    "salary": "300-500/天",
+    "fresh": "实习",
+    "major_match": "高度匹配",
+    "required_major": "计算机科学与技术,数据科学与大数据技术",
+    "skills": "机器学习,推荐系统,特征工程,数据结构与算法,概率统计",
+    "requirement": "理解召回、排序、Embedding、CTR 预估，能完成离线实验和线上指标分析。",
+    "source": "牛客网",
+    "source_url": "https://www.nowcoder.com/"
+  }
+]

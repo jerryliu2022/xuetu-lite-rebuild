@@ -1,0 +1,77 @@
+[
+  {
+    "skill": "Java",
+    "video_id": "V007",
+    "prerequisite_skill": ""
+  },
+  {
+    "skill": "Spring Boot",
+    "video_id": "V008",
+    "prerequisite_skill": "Java"
+  },
+  {
+    "skill": "MySQL",
+    "video_id": "V009",
+    "prerequisite_skill": "数据结构与算法"
+  },
+  {
+    "skill": "Redis",
+    "video_id": "V008",
+    "prerequisite_skill": "Java"
+  },
+  {
+    "skill": "数据结构与算法",
+    "video_id": "V002",
+    "prerequisite_skill": ""
+  },
+  {
+    "skill": "SQL",
+    "video_id": "V009",
+    "prerequisite_skill": ""
+  },
+  {
+    "skill": "统计分析",
+    "video_id": "V012",
+    "prerequisite_skill": ""
+  },
+  {
+    "skill": "机器学习",
+    "video_id": "V003",
+    "prerequisite_skill": "概率统计,数据结构与算法"
+  },
+  {
+    "skill": "推荐系统",
+    "video_id": "V011",
+    "prerequisite_skill": "机器学习"
+  },
+  {
+    "skill": "特征工程",
+    "video_id": "V011",
+    "prerequisite_skill": "机器学习"
+  },
+  {
+    "skill": "概率统计",
+    "video_id": "V012",
+    "prerequisite_skill": ""
+  },
+  {
+    "skill": "React",
+    "video_id": "V010",
+    "prerequisite_skill": "JavaScript"
+  },
+  {
+    "skill": "TypeScript",
+    "video_id": "V010",
+    "prerequisite_skill": "JavaScript"
+  },
+  {
+    "skill": "工程化",
+    "video_id": "V010",
+    "prerequisite_skill": ""
+  },
+  {
+    "skill": "计算机网络",
+    "video_id": "V005",
+    "prerequisite_skill": "数据结构与算法"
+  }
+]

@@ -1,0 +1,110 @@
+[
+  {
+    "course_id": "C101",
+    "name": "高等数学",
+    "semester": 1,
+    "credits": 5,
+    "status": "completed",
+    "concepts": "函数 极限 微积分 线性空间",
+    "prerequisites": ""
+  },
+  {
+    "course_id": "C102",
+    "name": "线性代数",
+    "semester": 1,
+    "credits": 3,
+    "status": "completed",
+    "concepts": "矩阵 向量 特征值 线性变换",
+    "prerequisites": ""
+  },
+  {
+    "course_id": "C201",
+    "name": "C 语言程序设计",
+    "semester": 2,
+    "credits": 4,
+    "status": "completed",
+    "concepts": "变量 指针 函数 程序设计",
+    "prerequisites": ""
+  },
+  {
+    "course_id": "C202",
+    "name": "离散数学",
+    "semester": 2,
+    "credits": 3,
+    "status": "completed",
+    "concepts": "集合 图论 逻辑 组合数学",
+    "prerequisites": ""
+  },
+  {
+    "course_id": "C301",
+    "name": "数据结构",
+    "semester": 3,
+    "credits": 4,
+    "status": "studying",
+    "concepts": "数组 链表 树 图 算法复杂度",
+    "prerequisites": "C201,C202"
+  },
+  {
+    "course_id": "C302",
+    "name": "概率论与数理统计",
+    "semester": 3,
+    "credits": 3,
+    "status": "studying",
+    "concepts": "概率 分布 统计 推断",
+    "prerequisites": "C101"
+  },
+  {
+    "course_id": "C401",
+    "name": "操作系统",
+    "semester": 4,
+    "credits": 4,
+    "status": "planned",
+    "concepts": "进程 线程 内存 文件系统 调度",
+    "prerequisites": "C301"
+  },
+  {
+    "course_id": "C402",
+    "name": "计算机网络",
+    "semester": 4,
+    "credits": 3,
+    "status": "planned",
+    "concepts": "TCP IP HTTP 路由 网络协议",
+    "prerequisites": "C301"
+  },
+  {
+    "course_id": "C501",
+    "name": "数据库系统",
+    "semester": 5,
+    "credits": 4,
+    "status": "planned",
+    "concepts": "SQL 索引 事务 MySQL 数据建模",
+    "prerequisites": "C301"
+  },
+  {
+    "course_id": "C502",
+    "name": "机器学习",
+    "semester": 5,
+    "credits": 3,
+    "status": "planned",
+    "concepts": "监督学习 特征工程 推荐系统 模型评估",
+    "prerequisites": "C102,C302,C301"
+  },
+  {
+    "course_id": "C601",
+    "name": "软件工程",
+    "semester": 6,
+    "credits": 3,
+    "status": "planned",
+    "concepts": "需求 设计 测试 敏捷 项目管理",
+    "prerequisites": "C301"
+  },
+  {
+    "course_id": "C602",
+    "name": "Java Web 开发",
+    "semester": 6,
+    "credits": 3,
+    "status": "planned",
+    "concepts": "Java Spring Boot Redis MySQL 后端开发",
+    "prerequisites": "C301,C501"
+  }
+]

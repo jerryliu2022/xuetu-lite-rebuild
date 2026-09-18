@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<!--
+  知识点：DOM 查询与 innerHTML 渲染
+  归属：前端
+  源码出处：frontend/index.html （页面骨架 #app 容器）
+           frontend/app.js:16   const $ = (selector) => document.querySelector(selector)
+           frontend/app.js:125  $("#app").innerHTML = `...`（主界面就是这么画出来的）
+
+  核心思路：
+    整个项目的前端没有用 Vue / React，就是一个 <div id="app"> 容器，
+    所有页面内容都是 JS 拼好 HTML 字符串后塞进 innerHTML。
+    所谓 SPA，本质就是「反复替换这一个容器的内容」。
+-->
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>DOM 查询与 innerHTML</title>
+  <style>
+    body { font-family: "Microsoft YaHei", sans-serif; padding: 24px; background: #f6f7fb; color: #1f2430; }
+    #app { background: #fff; border-radius: 12px; padding: 20px; min-height: 90px; box-shadow: 0 2px 12px rgba(0,0,0,.06); }
+    button { padding: 8px 16px; margin: 6px 6px 12px 0; border: none; border-radius: 8px;
+             background: #3b6cf6; color: #fff; cursor: pointer; font-size: 14px; }
+    button:hover { background: #2c57d1; }
+    .card { padding: 10px 14px; margin: 8px 0; background: #eef2ff; border-left: 4px solid #3b6cf6; border-radius: 6px; }
+    code { background: #e8eaf0; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <h3>DOM 查询与 innerHTML</h3>
+  <p class="sub">点击按钮，观察 #app 容器里的内容被替换</p>
+
+  <!-- 整个项目只有这一个挂载点，对应 frontend/index.html -->
+  <div id="app">这里是初始内容（还没被 JS 改过）</div>
+
+  <button onclick="renderByInnerHTML()">1. 用 innerHTML 渲染</button>
+  <button onclick="queryDom()">2. 查询 DOM 并高亮</button>
+  <button onclick="appendNode()">3. createElement 追加节点</button>
+  <button onclick="resetApp()">重置</button>
+
+  <script>
+    // 这一行和 frontend/app.js:16 完全一样
+    const $ = (selector) => document.querySelector(selector);
+
+    // 1) innerHTML：把一整段 HTML 字符串塞进容器
+    //    app.js 里所有页面（登录页、主页、播放页）都是这么画的
+    function renderByInnerHTML() {
+      const items = ['高等数学', '数据结构', '操作系统'];
+      $("#app").innerHTML = `
+        <div class="card">
+          <strong>用模板字符串拼出来的 HTML</strong>
+          ${items.map((name) => `<div>· ${name}</div>`).join("")}
+        </div>
+      `;
+    }
+
+    // 2) querySelector / querySelectorAll：查到元素后改样式、改文字
+    function queryDom() {
+      if (!$("#app .card")) return;
+      const cards = document.querySelectorAll("#app .card div");
+      cards.forEach((el, i) => {
+        el.style.color = i === 0 ? "#d93025" : "#1f2430";
+        el.style.fontWeight = i === 0 ? "bold" : "normal";
+      });
+      $("#app").insertAdjacentHTML("beforeend",
+        "<div class='card'>已通过 querySelectorAll 选中 <code>" + cards.length + "</code> 个节点并修改了样式</div>");
+    }
+
+    // 3) createElement：不用字符串拼接，逐个创建真实 DOM 节点
+    //    app.js:29 toast() 提示框就是这么做的
+    function appendNode() {
+      const node = document.createElement("div");
+      node.className = "card";
+      node.textContent = "我是 createElement 新建的节点，appendChild 加进来的";
+      $("#app").appendChild(node);
+    }
+
+    function resetApp() {
+      $("#app").innerHTML = "这里是初始内容（还没被 JS 改过）";
+    }
+  </script>
+</body>
+</html>

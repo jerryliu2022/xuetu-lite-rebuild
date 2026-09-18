@@ -1,0 +1,44 @@
+[
+  {
+    "student_id": "20240101",
+    "video_id": "V001",
+    "watched_episodes": 24,
+    "progress": 1.0,
+    "status": "completed"
+  },
+  {
+    "student_id": "20240101",
+    "video_id": "V002",
+    "watched_episodes": 12,
+    "progress": 0.33,
+    "status": "learning"
+  },
+  {
+    "student_id": "20240101",
+    "video_id": "V005",
+    "watched_episodes": 2,
+    "progress": 0.06,
+    "status": "learning"
+  },
+  {
+    "student_id": "20240101",
+    "video_id": "V012",
+    "watched_episodes": 20,
+    "progress": 1.0,
+    "status": "completed"
+  },
+  {
+    "student_id": "20240102",
+    "video_id": "V008",
+    "watched_episodes": 21,
+    "progress": 0.7,
+    "status": "learning"
+  },
+  {
+    "student_id": "20240103",
+    "video_id": "V011",
+    "watched_episodes": 10,
+    "progress": 0.29,
+    "status": "learning"
+  }
+]

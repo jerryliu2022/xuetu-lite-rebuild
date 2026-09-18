@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<!--
+  知识点：CSS 变量（自定义属性）+ 过渡动画 + Toast 提示
+  归属：前端
+  源码出处：frontend/app.js:191   style="--cover:${item.cover_color}; --i:${index}"
+           frontend/styles.css  .cover { background: var(--cover) }
+           frontend/app.js:28-34 toast() 轻提示
+           frontend/styles.css  :root { --violet: ...; --cyan: ... } 全局配色变量
+
+  为什么每门课的封面颜色都不一样？
+    数据库 video 表里每个视频都存了一个 cover_color 字段（比如 #884df0），
+    前端渲染时用行内 style 把它写成 CSS 变量 --cover，
+    样式表里的 background 再取 var(--cover)。
+    这样「一套样式 + 一个变量」就能出 N 种配色，不用给每张卡单独写 CSS。
+-->
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>CSS 变量、过渡与 Toast</title>
+  <style>
+    /* :root 里定义的变量整个页面都能用，相当于「设计系统的配色/尺寸常量」 */
+    :root {
+      --violet: #7c4dff;
+      --cyan: #0fb889;
+      --brand: #3b6cf6;
+      --radius: 12px;
+    }
+
+    body { font-family: "Microsoft YaHei", sans-serif; padding: 24px; background: #f6f7fb; color: #1f2430; }
+    button { padding: 8px 14px; margin: 0 8px 12px 0; border: none; border-radius: 8px;
+             background: var(--brand); color: #fff; cursor: pointer; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; }
+
+    .card {
+      background: #fff; border-radius: var(--radius); overflow: hidden;
+      box-shadow: 0 2px 10px rgba(0,0,0,.06);
+      /* transition：属性变化时做平滑过渡，而不是瞬变 */
+      transition: transform .18s ease, box-shadow .18s ease;
+      cursor: pointer;
+    }
+    .card:hover { transform: translateY(-4px); box-shadow: 0 8px 20px rgba(0,0,0,.14); }
+
+    /* 关键点：background 从行内传进来的 --cover 变量取值 */
+    .cover { height: 74px; background: linear-gradient(100deg, var(--cover, #999), rgba(0,0,0,.25)); }
+
+    .card h4 { margin: 12px 14px 4px; font-size: 15px; }
+    .card p { margin: 0 14px 14px; font-size: 12px; color: #7a7f8c; }
+
+    /* 关键帧动画：元素出现时淡入上浮，--i 变量控制延迟做「依次出现」效果 */
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .card { animation: rise .4s ease backwards; animation-delay: calc(var(--i, 0) * 70ms); }
+
+    /* Toast：项目 app.js:28-34 toast() 的样式 */
+    .toast {
+      position: fixed; left: 50%; bottom: 40px; transform: translateX(-50%);
+      background: rgba(30,36,48,.92); color: #fff; padding: 10px 20px;
+      border-radius: 20px; font-size: 14px; animation: rise .25s ease;
+    }
+  </style>
+</head>
+<body>
+  <h3>CSS 变量 + 过渡动画 + Toast</h3>
+  <button onclick="rerender()">重播入场动画</button>
+  <button onclick="toast('这是一条提示，1.9 秒后自动消失')">弹出 Toast</button>
+  <button onclick="randomColor()">随机换封面色</button>
+
+  <div class="grid" id="grid"></div>
+
+  <script>
+    const videos = [
+      { title: "高等数学・同济版", color: "#4f7cff", org: "中国大学MOOC" },
+      { title: "数据结构与算法", color: "#884df0", org: "B站" },
+      { title: "机器学习入门", color: "#119caf", org: "极客时间" },
+      { title: "操作系统原理", color: "#f49a13", org: "中国大学MOOC" },
+      { title: "计算机网络", color: "#0fb889", org: "B站" },
+      { title: "数据库系统", color: "#eb3f83", org: "极客时间" },
+    ];
+
+    function render(colors) {
+      document.getElementById("grid").innerHTML = videos.map((v, i) => `
+        <article class="card" onclick="toast('点击了：${v.title}')">
+          <!-- --cover 和 --i 两个变量直接写在 style 里，样式表通过 var() 读取 -->
+          <div class="cover" style="--cover:${colors ? colors[i] : v.color}; --i:${i}"></div>
+          <h4>${v.title}</h4>
+          <p>${v.org} ・ 封面色由 CSS 变量控制</p>
+        </article>
+      `).join("");
+    }
+
+    function rerender() { render(); }
+
+    function randomColor() {
+      // 每次生成一组随机颜色，体会「同一套 CSS + 不同变量值 = 不同外观」
+      render(videos.map(() => "#" + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, "0")));
+    }
+
+    // 源码出处：frontend/app.js:28-34
+    function toast(text) {
+      const node = document.createElement("div");
+      node.className = "toast";
+      node.textContent = text;
+      document.body.appendChild(node);
+      setTimeout(() => node.remove(), 1900);
+    }
+
+    render();
+  </script>
+</body>
+</html>

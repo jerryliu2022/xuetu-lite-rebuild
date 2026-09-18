@@ -1,0 +1,53 @@
+<!doctype html>
+<!--
+  learn 页面的骨架。
+
+  结构和主项目 frontend/index.html 是同一套路数：
+    一个 #app 容器 + JS 往里塞 innerHTML + 一个 nav 侧边导航。
+  看懂主项目的前端之后，再看这个页面会觉得非常眼熟。
+-->
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>学途 Lite · 边跑边学</title>
+    <link rel="stylesheet" href="/static/learn.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark">◆</span>
+        <strong>学途 Lite</strong>
+        <span class="brand-sub">边跑边学</span>
+      </div>
+
+      <div class="topbar-actions">
+        <span id="mainStatus" class="status-chip">检测主项目...</span>
+        <a class="ghost-btn" href="http://127.0.0.1:8765" target="_blank">打开项目页面 ↗</a>
+        <a class="ghost-btn" href="http://127.0.0.1:8765/docs" target="_blank">FastAPI 文档 ↗</a>
+      </div>
+    </header>
+
+    <div class="layout">
+      <nav class="sidebar">
+        <div class="side-scroll" id="nav"></div>
+        <div class="side-foot">
+          <div class="foot-title">服务地址</div>
+          <div class="foot-line">本项目主服务 <code>8765</code></div>
+          <div class="foot-line">本教学页面 <code>8766</code></div>
+        </div>
+      </nav>
+
+      <main class="main">
+        <div id="content">
+          <div class="loading">加载知识点索引...</div>
+        </div>
+      </main>
+    </div>
+
+    <!-- 轻量提示条，写法和主项目 app.js:28 toast() 一样 -->
+    <div id="toastBox"></div>
+
+    <script src="/static/learn.js"></script>
+  </body>
+</html>

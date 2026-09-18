@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<!--
+  知识点：CSS 布局 —— Flex 与 Grid
+  归属：前端
+  源码出处：frontend/styles.css  .shell / .course-grid / .job-grid / .path-row
+           frontend/index.html   .shell > .sidebar + .main
+
+  项目界面的骨架其实就两个布局：
+    1. Flex：把「侧边栏 + 主内容」横向排开（一维布局）
+    2. Grid：把一堆课程卡片均匀铺成自适应表格（二维布局）
+
+  Grid 里最实用的一句：
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr))
+  意思是「每列最少 220px，能塞几列就塞几列，剩余空间平分」—— 天生响应式。
+-->
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>Flex 与 Grid 布局</title>
+  <style>
+    body { font-family: "Microsoft YaHei", sans-serif; padding: 24px; background: #f6f7fb; color: #1f2430; margin: 0; }
+    h4 { margin: 22px 0 8px; }
+
+    /* ===== 1. Flex：一维排列 ===== */
+    .shell { display: flex; gap: 16px; height: 220px; }
+    .sidebar { width: 180px; background: #2b3040; color: #fff; border-radius: 12px; padding: 14px; }
+    .main { flex: 1; background: #fff; border-radius: 12px; padding: 14px;
+            display: flex; flex-direction: column; gap: 10px; }
+    .topbar { display: flex; justify-content: space-between; align-items: center;
+              padding-bottom: 10px; border-bottom: 1px solid #eceff4; }
+    .tagrow { display: flex; gap: 8px; flex-wrap: wrap; }
+    .tag { background: #eef2ff; color: #3b6cf6; padding: 4px 10px; border-radius: 12px; font-size: 12px; }
+
+    /* ===== 2. Grid：二维铺砖 ===== */
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+    .card { background: #fff; border-radius: 12px; padding: 14px; box-shadow: 0 2px 10px rgba(0,0,0,.06); }
+    .card .cover { height: 60px; border-radius: 8px; margin-bottom: 10px; background: var(--cover, #3b6cf6); }
+
+    /* ===== 3. Grid 进阶：跨行列 ===== */
+    .grid2 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .wide { grid-column: span 2; background: #fff8e1; }
+  </style>
+</head>
+<body>
+  <h3>Flex 与 Grid 布局</h3>
+
+  <h4>1. Flex —— 侧边栏 + 主内容（项目 .shell 的原型）</h4>
+  <div class="shell">
+    <aside class="sidebar">
+      <div style="font-weight:bold;margin-bottom:10px">◆ 学途 Lite</div>
+      <div style="font-size:13px;opacity:.8;width:180px">侧边栏固定 180px 宽，主区域用 flex:1 吃掉剩余空间</div>
+    </aside>
+    <main class="main">
+      <div class="topbar">
+        <strong>主区域</strong>
+        <span style="font-size:13px;color:#7a7f8c">justify-content: space-between 让两端对齐</span>
+      </div>
+      <div class="tagrow">
+        <span class="tag">正在学习</span><span class="tag">已学进阶</span>
+        <span class="tag">寒暑假预习</span><span class="tag">flex-wrap: wrap 放不下自动换行</span>
+      </div>
+    </main>
+  </div>
+
+  <h4>2. Grid —— 自适应课程卡片墙（项目 .course-grid 的原型）</h4>
+  <p style="font-size:13px;color:#7a7f8c;margin:0">
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr))
+    —— 拖动窗口宽度，卡片数量会自动变化
+  </p>
+  <div class="grid">
+    <div class="card"><div class="cover" style="--cover:#4f7cff"></div><strong>高等数学</strong><p style="font-size:12px;color:#7a7f8c">中国大学MOOC ・ 免费</p></div>
+    <div class="card"><div class="cover" style="--cover:#884df0"></div><strong>数据结构与算法</strong><p style="font-size:12px;color:#7a7f8c">B站 ・ 免费</p></div>
+    <div class="card"><div class="cover" style="--cover:#119caf"></div><strong>机器学习入门</strong><p style="font-size:12px;color:#7a7f8c">极客时间 ・ 付费</p></div>
+    <div class="card"><div class="cover" style="--cover:#f49a13"></div><strong>操作系统原理</strong><p style="font-size:12px;color:#7a7f8c">中国大学MOOC ・ 免费</p></div>
+    <div class="card"><div class="cover" style="--cover:#0fb889"></div><strong>计算机网络</strong><p style="font-size:12px;color:#7a7f8c">B站 ・ 免费</p></div>
+  </div>
+
+  <h4>3. Grid 进阶 —— grid-column: span 2 让某张卡占两格</h4>
+  <div class="grid2">
+    <div class="card">普通卡片</div>
+    <div class="card wide">跨两列的宽卡片</div>
+    <div class="card">普通卡片</div>
+    <div class="card">普通卡片</div>
+  </div>
+</body>
+</html>

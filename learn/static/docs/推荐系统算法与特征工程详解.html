@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>学途 Lite 推荐系统：算法、特征与工程实现详解</title>
+<style>
+:root {
+  --bg: #ffffff; --panel: #f7f7f5; --ink: #1f1f1d; --ink-2: #5f5e5a;
+  --line: #e3e1db; --accent: #185fa5; --code-bg: #f4f4f2; --code-ink: #2c2c2a;
+  --warn-bg: #fdf6e7; --warn-line: #d9a440;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 0; background: var(--bg); color: var(--ink);
+  font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 15px; line-height: 1.75;
+}
+.wrap { max-width: 900px; margin: 0 auto; padding: 48px 28px 120px; }
+h1 { font-size: 28px; font-weight: 600; margin: 0 0 8px; letter-spacing: -0.01em; }
+h2 {
+  font-size: 21px; font-weight: 600; margin: 52px 0 16px;
+  padding-bottom: 10px; border-bottom: 1px solid var(--line);
+}
+h3 { font-size: 17px; font-weight: 600; margin: 34px 0 12px; }
+h4 { font-size: 15px; font-weight: 600; margin: 24px 0 10px; color: var(--ink-2); }
+p { margin: 12px 0; }
+strong { font-weight: 600; }
+a { color: var(--accent); }
+hr { border: 0; border-top: 1px solid var(--line); margin: 40px 0; }
+code {
+  background: var(--code-bg); color: var(--code-ink); padding: 2px 6px;
+  border-radius: 4px; font-size: 0.88em;
+  font-family: ui-monospace, Consolas, "Courier New", monospace;
+}
+pre {
+  background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px;
+  padding: 16px 18px; overflow-x: auto; margin: 16px 0;
+}
+pre code {
+  background: none; padding: 0; font-size: 13px; line-height: 1.65;
+  white-space: pre; color: var(--code-ink);
+}
+blockquote {
+  margin: 16px 0; padding: 12px 16px; background: var(--warn-bg);
+  border-left: 3px solid var(--warn-line); border-radius: 0 6px 6px 0;
+  color: #4a4030; font-size: 14px;
+}
+blockquote p { margin: 0; }
+ul, ol { margin: 12px 0; padding-left: 26px; }
+li { margin: 6px 0; }
+.tw { overflow-x: auto; margin: 16px 0; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td {
+  border: 1px solid var(--line); padding: 9px 12px; text-align: left;
+  vertical-align: top;
+}
+th { background: var(--panel); font-weight: 600; white-space: nowrap; }
+tbody tr:nth-child(even) { background: #fbfbfa; }
+.toc {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+  padding: 18px 22px; margin: 28px 0 8px;
+}
+.toc-title { font-size: 13px; font-weight: 600; color: var(--ink-2); margin-bottom: 10px; }
+.toc a {
+  display: block; text-decoration: none; color: var(--ink-2);
+  font-size: 13.5px; padding: 3px 0;
+}
+.toc a:hover { color: var(--accent); }
+.toc-l3 { padding-left: 18px !important; font-size: 13px !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav class="toc"><div class="toc-title">目录</div><a class="toc-l2" href="#目录">目录</a><a class="toc-l2" href="#0-全局视角一次推荐请求发生了什么">0. 全局视角：一次推荐请求发生了什么</a><a class="toc-l2" href="#1-为什么是两段式推荐">1. 为什么是「两段式」推荐</a><a class="toc-l3" href="#11-问题定义">1.1 问题定义</a><a class="toc-l3" href="#12-本项目选型">1.2 本项目选型</a><a class="toc-l2" href="#2-召回阶段5-路混合召回">2. 召回阶段：5 路混合召回</a><a class="toc-l3" href="#21-三条课程图谱规则">2.1 三条课程图谱规则</a><a class="toc-l3" href="#22-itemcf-协同召回93-96">2.2 ItemCF 协同召回（`:93-96`）</a><a class="toc-l3" href="#23-专业方向召回97-103">2.3 专业方向召回（`:97-103`）</a><a class="toc-l3" href="#24-专业不匹配剔除104-113">2.4 专业不匹配剔除（`:104-113`）</a><a class="toc-l3" href="#25-热门兜底114-125">2.5 热门兜底（`:114-125`）</a><a class="toc-l3" href="#26-实测召回结果">2.6 实测召回结果</a><a class="toc-l2" href="#3-特征工程8-维特征逐个拆解">3. 特征工程：8 维特征逐个拆解</a><a class="toc-l3" href="#30-特征总表">3.0 特征总表</a><a class="toc-l3" href="#31-特征-0log_popularity热度">3.1 特征 0：`log_popularity`（热度）</a><a class="toc-l3" href="#32-特征-1rating评分">3.2 特征 1：`rating`（评分）</a><a class="toc-l3" href="#33-特征-2free_access免费可及性">3.3 特征 2：`free_access`（免费可及性）</a><a class="toc-l3" href="#34-特征-3curriculum_graph课程图谱位置">3.4 特征 3：`curriculum_graph`（课程图谱位置）</a><a class="toc-l3" href="#35-特征-4itemcf_similarity协同相似度">3.5 特征 4：`itemcf_similarity`（协同相似度）</a><a class="toc-l3" href="#36-特征-5platform_preference平台偏好">3.6 特征 5：`platform_preference`（平台偏好）</a><a class="toc-l3" href="#37-特征-6course_downstream_value后继课程价值">3.7 特征 6：`course_downstream_value`（后继课程价值）</a><a class="toc-l3" href="#38-特征-7major_alignment专业匹配度">3.8 特征 7：`major_alignment`（专业匹配度）</a><a class="toc-l3" href="#39-训练与推理的一致性">3.9 训练与推理的一致性</a><a class="toc-l2" href="#4-排序模型轻量逻辑回归">4. 排序模型：轻量逻辑回归</a><a class="toc-l3" href="#41-标准化">4.1 标准化</a><a class="toc-l3" href="#42-模型形式">4.2 模型形式</a><a class="toc-l3" href="#43-训练批量梯度下降-l2-正则">4.3 训练：批量梯度下降 + L2 正则</a><a class="toc-l3" href="#44-真实训练结果解读">4.4 真实训练结果解读</a><a class="toc-l2" href="#5-混合打分与-mmr-重排">5. 混合打分与 MMR 重排</a><a class="toc-l3" href="#51-混合打分模型分-规则分-质量分">5.1 混合打分：模型分 + 规则分 + 质量分</a><a class="toc-l3" href="#511-可观测性feature_trace">5.1.1 可观测性：`feature_trace`</a><a class="toc-l3" href="#52-mmr-重排解决一屏全是一样东西">5.2 MMR 重排：解决"一屏全是一样东西"</a><a class="toc-l2" href="#6-训练数据从哪来">6. 训练数据从哪来</a><a class="toc-l3" href="#61-样本表recommend_log">6.1 样本表：`recommend_log`</a><a class="toc-l3" href="#62-样本构造">6.2 样本构造</a><a class="toc-l3" href="#63-数据是怎么生成的">6.3 数据是怎么生成的</a><a class="toc-l2" href="#7-评估方法">7. 评估方法</a><a class="toc-l3" href="#71-留一法leave-one-out">7.1 留一法（Leave-One-Out）</a><a class="toc-l3" href="#72-指标">7.2 指标</a><a class="toc-l3" href="#73-实测评估结果">7.3 实测评估结果</a><a class="toc-l2" href="#8-代码索引表">8. 代码索引表</a><a class="toc-l3" href="#81-推荐主流程">8.1 推荐主流程</a><a class="toc-l3" href="#82-训练管线">8.2 训练管线</a><a class="toc-l3" href="#83-数据来源">8.3 数据来源</a><a class="toc-l2" href="#9-已知问题与改进建议">9. 已知问题与改进建议</a><a class="toc-l3" href="#91-特征不一致中优先级">9.1 特征不一致（中优先级）</a><a class="toc-l3" href="#92-靠中文文本匹配判断召回类型中优先级">9.2 靠中文文本匹配判断召回类型（中优先级）</a><a class="toc-l3" href="#93-setdefault-导致理由归属被抢先低优先级">9.3 `setdefault` 导致理由归属被抢先（低优先级）</a><a class="toc-l3" href="#94-prerequisites-like-模糊匹配隐患低优先级">9.4 `prerequisites LIKE` 模糊匹配隐患（低优先级）</a><a class="toc-l3" href="#95-训练样本量过小需知晓">9.5 训练样本量过小（需知晓）</a><a class="toc-l3" href="#96-free_access-在模型内部失效低优先级">9.6 `free_access` 在模型内部失效（低优先级）</a><a class="toc-l3" href="#97-train_modelpy314-调用不存在的函数已确认-bug">9.7 `train_model.py:314` 调用不存在的函数（已确认 bug）</a><a class="toc-l2" href="#附一页速查">附：一页速查</a></nav>
+<h1 id="学途-lite-推荐系统算法特征与工程实现详解">学途 Lite 推荐系统：算法、特征与工程实现详解</h1>
+<blockquote>本文所有代码、行号、数值均取自本项目当前源码与真实数据库，可直接对照阅读。 数值采集自 <code>data/artifacts/ranker_model.json</code> 与 <code>data/processed/xuetu_lite.db</code>。</blockquote>
+<hr>
+<h2 id="目录">目录</h2>
+<ul><li><a href="#0-全局视角一次推荐请求发生了什么">0. 全局视角：一次推荐请求发生了什么</a></li><li><a href="#1-为什么是两段式推荐">1. 为什么是「两段式」推荐</a></li><li><a href="#2-召回阶段5-路混合召回">2. 召回阶段：5 路混合召回</a></li><li><a href="#3-特征工程8-维特征逐个拆解">3. 特征工程：8 维特征逐个拆解</a></li><li><a href="#4-排序模型轻量逻辑回归">4. 排序模型：轻量逻辑回归</a></li><li><a href="#5-混合打分与-mmr-重排">5. 混合打分与 MMR 重排</a></li><li><a href="#6-训练数据从哪来">6. 训练数据从哪来</a></li><li><a href="#7-评估方法">7. 评估方法</a></li><li><a href="#8-代码索引表">8. 代码索引表</a></li><li><a href="#9-已知问题与改进建议">9. 已知问题与改进建议</a></li></ul>
+<hr>
+<h2 id="0-全局视角一次推荐请求发生了什么">0. 全局视角：一次推荐请求发生了什么</h2>
+<p>用户在页面点开「专业路径」，浏览器请求：</p>
+<pre><code>GET /api/recommendations/professional?student_id=20240101&amp;filter=all</code></pre>
+<p>这个请求最终落到 <code>backend/recommender.py</code> 的 <code>recommend_professional()</code>（<code>:250-296</code>）。整个链路是：</p>
+<pre><code>① 加载模型     load_model()              读 data/artifacts/ranker_model.json (995 KB)
+② 取学生       SELECT * FROM student     拿到 major / semester
+③ 算黑白名单   _touched_video_ids()      哪些视频"碰过"了
+④ 混召         professional_candidates() 116 个视频 → 63 个候选     ← 召回
+⑤ 抽特征       feature_vector()          每个候选变成 8 个数字
+⑥ 打分         score()                   逻辑回归 → 点击概率
+⑦ 混合         blended_score             模型分 + 规则分 + 质量分
+⑧ 重排         mmr_rerank()              打散同质内容 → 9 条         ← 重排</code></pre>
+<p>关键：<strong>第 ④ 步只负责"捞得全"，第 ⑥⑧ 步才负责"排得准"</strong>。</p>
+<p>对应代码（<code>:250-296</code>，节选）：</p>
+<pre><code class="lang-python">def recommend_professional(
+    student_id: str,
+    filt: str = "all",
+    model_override: Dict[str, Any] | None = None,
+    exclude_video_ids: Set[str] | None = None,
+    context_video_ids: Set[str] | None = None,
+) -&gt; List[Dict[str, Any]]:
+    con = connect()
+    model = model_override or load_model()                    # ① 加载模型
+    student = rows(con, "SELECT * FROM student WHERE student_id=?", (student_id,))[0]  # ②
+    touched = _touched_video_ids(con, student_id, exclude_video_ids)   # ③
+    context = _touched_video_ids(con, student_id, context_video_ids)   # ③
+    reasons = professional_candidates(                        # ④ 召回
+        con, student, model,
+        exclude_video_ids=touched,
+        context_video_ids=context,
+    )
+    done_videos = touched
+    history = sorted(context)
+    scored = []
+    for video_id, reason in reasons.items():
+        video = rows(con, "SELECT * FROM video WHERE video_id=?", (video_id,))[0]
+        ...
+        features = feature_vector(con, student, video, reasons, model, history=history)  # ⑤
+        predicted_ctr = score(features, model)                # ⑥
+        blended_score = (                                     # ⑦
+            0.62 * predicted_ctr
+            + 0.2 * recall_strength(reason)
+            + 0.12 * freshness_bonus(video)
+            + ...
+        )
+    return mmr_rerank(sorted(scored, key=..., reverse=True), model, 9)   # ⑧</code></pre>
+<hr>
+<h2 id="1-为什么是两段式推荐">1. 为什么是「两段式」推荐</h2>
+<h3 id="11-问题定义">1.1 问题定义</h3>
+<p>项目里有 <strong>116 个视频</strong>，要给某学生挑出<strong>最该看的 9 个</strong>。</p>
+<p>理论上可以让排序模型对全部 116 个逐个打分再排序。但真实推荐系统不会这么做，原因有两个：</p>
+<ol><li><strong>算力</strong>：工业级场景候选池是百万级，逐个精排跑不动。</li><li><strong>特征成本</strong>：有些特征算起来很贵（比如 ItemCF 相似度要遍历历史 × 相似表），只有少量候选才负担得起。</li></ol>
+<p>所以标准做法是两层漏斗：</p>
+<div class='tw'><table><thead><tr><th>阶段</th><th>别名</th><th>职责</th><th>本项目规模</th></tr></thead><tbody><tr><td>召回（Recall）</td><td>粗筛</td><td>用便宜规则把相关的捞出来，<strong>宁可错捞，不可漏掉</strong></td><td>116 → 63</td></tr><tr><td>排序（Ranking）</td><td>精排</td><td>用模型给候选排序，<strong>追求头部准确</strong></td><td>63 → 9</td></tr><tr><td>重排（Re-rank）</td><td>打散</td><td>调整结果构成，避免同质化</td><td>9 → 9</td></tr></tbody></table></div>
+<h3 id="12-本项目选型">1.2 本项目选型</h3>
+<p><code>train_model.py:302</code> 里官方声明了自己的技术选择：</p>
+<pre><code class="lang-python">"choice": "Hybrid recall + TF-IDF ItemCF + lightweight logistic ranker; "
+          "CPU-only, no heavy GPU/vector DB dependency."</code></pre>
+<p>翻译一下：<strong>混合召回 + TF-IDF 协同过滤 + 轻量逻辑回归排序，纯 CPU 跑，不依赖 GPU 和向量数据库。</strong></p>
+<p>这是一个刻意做"轻"的工程选择——竞赛项目要在普通笔记本上跑起来，而且所有算法都要能讲清楚，不能是黑盒。</p>
+<hr>
+<h2 id="2-召回阶段5-路混合召回">2. 召回阶段：5 路混合召回</h2>
+<p>核心函数：<code>backend/recommender.py:67-126</code> 的 <code>professional_candidates()</code>。</p>
+<p>"混合召回"的意思是：<strong>用 5 种不同思路各捞一批，合并去重</strong>。之所以要 5 路，是因为单一路径都会漏：</p>
+<ul><li>只用图谱 → 漏掉跨专业课</li><li>只用协同 → 冷启动学生没历史就废了</li><li>只用热度 → 推的全是爆款，毫无个性</li></ul>
+<h3 id="21-三条课程图谱规则">2.1 三条课程图谱规则</h3>
+<p>图谱数据来自 <code>course</code> 表的 <code>prerequisites</code> 字段（逗号分隔的先修课 ID 串）。</p>
+<pre><code class="lang-python"># recommender.py:77-79  先查三种课程状态
+studying  = rows(con, "SELECT * FROM course WHERE status='studying'")
+completed = rows(con, "SELECT * FROM course WHERE status='completed'")
+planned   = rows(con, "SELECT * FROM course WHERE semester=?", (student["semester"] + 1,))</code></pre>
+<p><strong>规则 1（<code>:80-83</code>）：正在学 → 同课</strong></p>
+<pre><code class="lang-python">for course in studying:
+    for video in rows(con, "SELECT video_id FROM video WHERE course_id=?", (course["course_id"],)):
+        if video["video_id"] not in touched:
+            reasons.setdefault(video["video_id"], f"正在学习《{course['name']}》，召回同主题视频")</code></pre>
+<p>含义：你正在上《数据结构》，那就推荐《数据结构》下所有视频。<strong>配合课堂进度，需求最急。</strong></p>
+<p><strong>规则 2（<code>:84-88</code>）：学过 → 后继</strong></p>
+<pre><code class="lang-python">for done in completed:
+    for next_course in rows(con, "SELECT * FROM course WHERE prerequisites LIKE ?", (f"%{done['course_id']}%",)):
+        for video in rows(con, "SELECT video_id FROM video WHERE course_id=?", (next_course["course_id"],)):
+            if video["video_id"] not in touched:
+                reasons.setdefault(video["video_id"], f"已学《{done['name']}》，推荐后继进阶课")</code></pre>
+<p>含义：你学完《线性代数》(C102)，就去找<strong>先修要求里含 C102</strong> 的课——查出来是 C502《机器学习》。<strong>知识是阶梯，学完基础才能学进阶。</strong></p>
+<p>⚠️ 这里是字符串模糊匹配 <code>LIKE '%C102%'</code>，不是精确匹配。当前课程 ID 都是 4 位不会误伤，但属于脆弱写法（见第 9 节）。</p>
+<p><strong>规则 3（<code>:89-92</code>）：下学期 → 预习</strong></p>
+<pre><code class="lang-python">for course in planned:
+    for video in rows(con, "SELECT video_id FROM video WHERE course_id=?", (course["course_id"],)):
+        if video["video_id"] not in touched:
+            reasons.setdefault(video["video_id"], f"下学期将学《{course['name']}》，适合假期预习")</code></pre>
+<p>含义：学生 <code>semester=3</code>，下学期就是第 4 学期，把第 4 学期的课（操作系统、计算机网络）先推荐出来预习。</p>
+<h3 id="22-itemcf-协同召回93-96">2.2 ItemCF 协同召回（<code>:93-96</code>）</h3>
+<pre><code class="lang-python">for watched_id in context:
+    for item in model["item_similarity"].get(watched_id, [])[:4]:
+        if item["video_id"] not in touched:
+            reasons.setdefault(item["video_id"], "基于你的学习记录做 ItemCF 相似召回")</code></pre>
+<p><code>model["item_similarity"]</code> 是<strong>离线算好</strong>的"视频-视频"相似度表，存在模型 JSON 里。</p>
+<ul><li><code>context</code> = 这个学生看过（进度 &gt; 0）的视频 ID 集合</li><li>对着每个看过的视频，查它最相似的 top4</li><li>思路是"看过 A 的人，多半也会喜欢和 A 像的 B"</li></ul>
+<p>这套相似度是<strong>基于文本内容</strong>算的（不是行为共现），算法在 <code>train_model.py:31-69</code>，详见第 3.5 节。</p>
+<h3 id="23-专业方向召回97-103">2.3 专业方向召回（<code>:97-103</code>）</h3>
+<pre><code class="lang-python">for video in rows(con, "SELECT video_id FROM video WHERE major=? ORDER BY popularity DESC LIMIT 16",
+                  (student["major"],)):
+    if video["video_id"] not in touched:
+        reasons.setdefault(video["video_id"], f"匹配{student['major']}专业方向，优先补齐核心课程")</code></pre>
+<p>直接按 <code>video.major</code> 精确匹配学生的专业，取热度前 16。<strong>保底手段</strong>：就算图谱和协同都没捞到东西，专业相关的总能捞一批。</p>
+<h3 id="24-专业不匹配剔除104-113">2.4 专业不匹配剔除（<code>:104-113</code>）</h3>
+<pre><code class="lang-python">incompatible = rows(con, """
+    SELECT DISTINCT video_id FROM video
+    WHERE major IS NOT NULL AND major&lt;&gt;?
+""", (student["major"],))
+for item in incompatible:
+    reasons.pop(item["video_id"], None)</code></pre>
+<p><strong>这是"负召回"</strong>：凡是标了专业、且专业不是这个学生的，直接从候选里删掉。比如给"计算机科学与技术"的学生，不会推荐"护理学"的视频。</p>
+<h3 id="25-热门兜底114-125">2.5 热门兜底（<code>:114-125</code>）</h3>
+<pre><code class="lang-python">for video in rows(con, """
+    SELECT video_id FROM video
+    WHERE major=? OR major IS NULL OR major=''
+    ORDER BY popularity DESC
+    LIMIT 10
+""", (student["major"],)):
+    if video["video_id"] not in touched:
+        reasons.setdefault(video["video_id"], "热门优质课程兜底召回")</code></pre>
+<p>最后再补 10 个热门（专业匹配或无专业标注的）。<strong>保证候选池永远填得满</strong>，不会因为前 4 路都没命中而返回空列表。</p>
+<h3 id="26-实测召回结果">2.6 实测召回结果</h3>
+<p>以学生 <code>20240101</code>（李明，大二，semester=3，计算机科学与技术）为例，实跑得到 <strong>63 个候选</strong>：</p>
+<div class='tw'><table><thead><tr><th>召回路径</th><th>候选数</th><th>占比</th></tr></thead><tbody><tr><td>正在学 → 同课（数据结构 45 + 概率论 1）</td><td>46</td><td>73.0%</td></tr><tr><td>下学期 → 预习（计网 4 + 操作系统 2）</td><td>6</td><td>9.5%</td></tr><tr><td>ItemCF 相似召回</td><td>5</td><td>7.9%</td></tr><tr><td>已学 → 后继（C502 机器学习）</td><td>3</td><td>4.8%</td></tr><tr><td>热门兜底</td><td>3</td><td>4.8%</td></tr><tr><td><strong>合计</strong></td><td><strong>63</strong></td><td>100%</td></tr></tbody></table></div>
+<p>⚠️ 注意规则 1 占了七成——因为《数据结构》这门课下面挂了 45 个视频。这会导致<strong>候选池严重偏向一门课</strong>，是后续 MMR 重排存在的意义。</p>
+<hr>
+<h2 id="3-特征工程8-维特征逐个拆解">3. 特征工程：8 维特征逐个拆解</h2>
+<p>这是整个推荐系统最核心的部分。<strong>每个候选视频最终被表示成 8 个 0~1 之间的浮点数</strong>，这 8 个数字就是排序模型看到的全部信息。</p>
+<h3 id="30-特征总表">3.0 特征总表</h3>
+<p>特征名定义在 <code>train_model.py:292-301</code>：</p>
+<pre><code class="lang-python">"feature_names": [
+    "log_popularity",           # 0 热度
+    "rating",                   # 1 评分
+    "free_access",              # 2 是否免费
+    "curriculum_graph",         # 3 课程图谱位置
+    "itemcf_similarity",        # 4 协同相似度
+    "platform_preference",      # 5 平台偏好
+    "course_downstream_value",  # 6 后继课程价值
+    "major_alignment",          # 7 专业匹配度
+],</code></pre>
+<div class='tw'><table><thead><tr><th>#</th><th>特征</th><th>一句话含义</th><th>数据来源</th></tr></thead><tbody><tr><td>0</td><td><code>log_popularity</code></td><td>这视频有多火</td><td><code>video.popularity</code></td></tr><tr><td>1</td><td><code>rating</code></td><td>评分高不高</td><td><code>video.rating</code></td></tr><tr><td>2</td><td><code>free_access</code></td><td>是不是免费</td><td><code>video.is_paid</code></td></tr><tr><td>3</td><td><code>curriculum_graph</code></td><td>在课程图谱上的位置好不好</td><td><code>course</code> + <code>learning_record</code></td></tr><tr><td>4</td><td><code>itemcf_similarity</code></td><td>和你看过的视频有多像</td><td><code>learning_record</code> + 模型里的相似表</td></tr><tr><td>5</td><td><code>platform_preference</code></td><td>你平时爱去哪个平台</td><td><code>behavior_log</code> + <code>video.platform</code></td></tr><tr><td>6</td><td><code>course_downstream_value</code></td><td>这门课是几门课的基石</td><td><code>course.prerequisites</code></td></tr><tr><td>7</td><td><code>major_alignment</code></td><td>专业对不对口</td><td><code>video.major</code> / <code>course.major</code> / 文本</td></tr></tbody></table></div>
+<p>生产环境实现：<code>recommender.py:129-179</code> 的 <code>feature_vector()</code></p>
+<p>训练环境实现：<code>train_model.py:105-156</code> 的 <code>feature_vector()</code></p>
+<p><strong>两个同名函数，顺序必须严格一致</strong>，否则权重会和特征错位。这是推荐系统里最容易出事故的地方之一。</p>
+<hr>
+<h3 id="31-特征-0log_popularity热度">3.1 特征 0：<code>log_popularity</code>（热度）</h3>
+<p><strong>计算</strong>（<code>recommender.py:171</code>）：</p>
+<pre><code class="lang-python">math.log1p(video["popularity"]) / 14.0</code></pre>
+<p><strong>为什么取对数</strong>：播放量分布极度长尾——最火的 48.3 万播放，最冷的可能几千。直接除以最大值会让绝大多数视频挤在 0 附近，模型学不动。<code>log1p</code>（即 <code>log(1+x)</code>，专门处理 x=0 的情况）把长尾压缩成近似线性。</p>
+<p><strong>为什么除以 14</strong>：<code>log1p(483000) ≈ 13.09</code>，除以 14 刚好把最大值压到 1 以内，完成归一化。</p>
+<p><strong>数据来源</strong>：<code>video.popularity</code> 字段，建表在 <code>data_acquisition.py</code>，值来自 <code>data/raw/</code> 下的采集数据或种子数据。</p>
+<p><strong>实测</strong>：均值 0.7960，标准差 0.1975 —— 分布合理，说明对数压缩起作用了。</p>
+<hr>
+<h3 id="32-特征-1rating评分">3.2 特征 1：<code>rating</code>（评分）</h3>
+<p><strong>计算</strong>（<code>recommender.py:172</code>）：</p>
+<pre><code class="lang-python">float(video["rating"]) / 5.0</code></pre>
+<p>5 分制直接除以 5 归一化。数据来源是 <code>video.rating</code>（如 4.8、4.9）。</p>
+<p><strong>实测</strong>：均值 0.8938，标准差 0.0562。<strong>标准差极小</strong>说明所有视频评分都在 4.4~4.9 之间挤着，区分度很弱。</p>
+<p><strong>训练出的权重是 -0.05，近乎为 0 且略负</strong>。这符合直觉：当所有候选评分都差不多时，这个特征提供不了信息，模型自然学不到有效权重。</p>
+<blockquote>教学点：<strong>特征不是越多越好，方差太小的特征等于噪声</strong>。</blockquote>
+<hr>
+<h3 id="33-特征-2free_access免费可及性">3.3 特征 2：<code>free_access</code>（免费可及性）</h3>
+<p><strong>计算</strong>（<code>recommender.py:173</code>）：</p>
+<pre><code class="lang-python">1.0 - float(video["is_paid"]) * 0.22</code></pre>
+<p>免费（<code>is_paid=0</code>）得 1.0，付费（<code>is_paid=1</code>）得 0.78。<strong>付费不是完全排除，只是降权 22%</strong>——因为付费课往往质量更高，一刀切掉会损失好内容。</p>
+<p><strong>实测</strong>：均值 <strong>1.0000</strong>，标准差 <strong>1.0000</strong>。</p>
+<p>标准差恰好是 1.0 是代码里的兜底（<code>train_model.py:173</code> 的 <code>math.sqrt(var) or 1.0</code>）——真实方差是 <strong>0</strong>，也就是<strong>所有训练样本的候选视频全是免费的</strong>。</p>
+<p>后果：特征恒为常数 → 标准化后恒为 0 → <strong>权重训练出来正好是 0.0000</strong>，这个特征在<strong>模型内部</strong>完全失效。</p>
+<blockquote>教学点：这是典型的"<strong>特征坍缩</strong>"。数据本身没有区分度时，再精巧的公式也救不回来。  不过它在<strong>混合打分阶段</strong>又被救回来了——见 <a href="#51-混合打分模型分--规则分--质量分">5.1 节</a> 的 <code>0.06 * features[2]</code>。模型学不动的东西，可以用规则手工补上。</blockquote>
+<hr>
+<h3 id="34-特征-3curriculum_graph课程图谱位置">3.4 特征 3：<code>curriculum_graph</code>（课程图谱位置）</h3>
+<p><strong>这个特征在两处实现不同，是本项目最需要注意的地方。</strong></p>
+<p><strong>训练时</strong>（<code>train_model.py:139-146</code>）——靠 SQL 查询判断：</p>
+<pre><code class="lang-python">prereq_hit = 0.0
+prereqs = [part.strip() for part in (course.get("prerequisites") or "").split(",") if part.strip()]
+if course["course_id"] in studying_courses:
+    prereq_hit = 1.0                                    # 正在学这门课
+elif any(prereq in completed_courses for prereq in prereqs):
+    prereq_hit = 0.8                                    # 先修课已学完
+elif course["course_id"] in planned_courses:
+    prereq_hit = 0.65                                   # 下学期要学</code></pre>
+<p>其中三个课程集合在 <code>:114-120</code> 查出来：</p>
+<pre><code class="lang-python">completed_courses = {                               # 这学生已完成视频所属的课程
+    videos_by_id[row["video_id"]]["course_id"]
+    for row in rows(con, "SELECT video_id FROM learning_record WHERE student_id=? AND status='completed'",
+                    (student["student_id"],))
+    if row["video_id"] in videos_by_id
+}
+studying_courses = {row["course_id"] for row in
+                    rows(con, "SELECT course_id FROM course WHERE status='studying'")}
+planned_courses = {row["course_id"] for row in
+                   rows(con, "SELECT course_id FROM course WHERE semester=?", (student["semester"] + 1,))}</code></pre>
+<p><strong>推理时</strong>（<code>recommender.py:157-168</code>）——靠<strong>推荐理由文本</strong>反推：</p>
+<pre><code class="lang-python">reason = reasons.get(video["video_id"], "")
+graph_score = (
+    1.0  if "正在学习" in reason
+    else 0.82 if "后继" in reason
+    else 0.78 if "专业方向" in reason
+    else 0.66 if "下学期" in reason
+    else 0.4
+)</code></pre>
+<p><strong>差异对比</strong>：</p>
+<div class='tw'><table><thead><tr><th>情况</th><th>训练时值</th><th>推理时值</th></tr></thead><tbody><tr><td>正在学的课</td><td>1.0</td><td>1.0</td></tr><tr><td>先修已满足（后继课）</td><td>0.8</td><td>0.82</td></tr><tr><td>专业方向召回</td><td>—— （无此分支）</td><td>0.78</td></tr><tr><td>下学期要学</td><td>0.65</td><td>0.66</td></tr><tr><td>其他（ItemCF/兜底）</td><td><strong>0.0</strong></td><td><strong>0.4</strong></td></tr></tbody></table></div>
+<p>推理时"其他情况"给 0.4 而不是 0，因为线上没有"未命中"的候选——所有进入打分的候选都已经被某条规则捞出来了，只是理由不同。</p>
+<p><strong>这构成了训练/推理特征不一致（training-serving skew）</strong>：同一门课在训练时被算作 0.0，在线上可能被算作 0.4。模型学到的权重建立在错误的分布上。详见第 9 节。</p>
+<p><strong>权重解读</strong>：实测权重 <strong>-0.1268</strong>（负值）。</p>
+<blockquote>这个负号很有意思：说明在当前数据下，<strong>图谱位置越"正统"的视频，用户反而点击越少</strong>。可能的原因——图谱召回的课是"应该学"的，但用户实际兴趣在别处；而且该特征与 <code>major_alignment</code> 存在共线性（专业匹配的课同时也是图谱命中的课），权重被抢走了。</blockquote>
+<hr>
+<h3 id="35-特征-4itemcf_similarity协同相似度">3.5 特征 4：<code>itemcf_similarity</code>（协同相似度）</h3>
+<p>这是<strong>唯一需要离线预计算</strong>的特征，也是整个系统里算法含量最高的一环。</p>
+<h4 id="第一步文本向量化tf-idf">第一步：文本向量化（TF-IDF）</h4>
+<p><code>train_model.py:23-49</code>：</p>
+<pre><code class="lang-python">def tokenize(text: str) -&gt; List[str]:
+    text = (text or "").lower()
+    ascii_terms = re.findall(r"[a-z0-9+#.]+", text)      # 英文/数字保留（含 C++、C#、.NET）
+    zh = re.findall(r"[\u4e00-\u9fff]", text)            # 中文逐字切
+    bigrams = ["".join(pair) for pair in zip(zh, zh[1:])] # 中文相邻字组成二元组
+    return ascii_terms + zh + bigrams</code></pre>
+<p><strong>中文分词的特殊处理</strong>：项目没用 jieba 之类的分词库，而是用<strong>字 + 二元组（bigram）</strong>。比如"数据结构"会被切成 <code>数、据、结、构、数据、据结、结构</code>。这是中文文本处理的经典轻量方案——不需要词典，也能捕捉部分词序信息。</p>
+<pre><code class="lang-python">def build_tfidf(videos, courses_by_id):
+    docs = {}; df = Counter()
+    for video in videos:
+        course = courses_by_id[video["course_id"]]
+        # 把 5 个字段拼成一篇"文档"
+        text = " ".join([video["title"], video["tags"], video["summary"],
+                         course["name"], course["concepts"]])
+        counts = Counter(tokenize(text))
+        docs[video["video_id"]] = counts
+        for term in counts:
+            df[term] += 1                                # 统计词出现在多少个文档里
+
+    n_docs = len(videos)
+    idf = {term: math.log((n_docs + 1) / (freq + 1)) + 1 for term, freq in df.items()}
+    vectors = {}
+    for video_id, counts in docs.items():
+        raw = {term: (1 + math.log(count)) * idf[term] for term, count in counts.items()}
+        norm = math.sqrt(sum(value * value for value in raw.values())) or 1.0
+        vectors[video_id] = {term: round(value / norm, 6) for term, value in raw.items()}
+    return {"idf": idf, "vectors": vectors}</code></pre>
+<p><strong>TF-IDF 公式拆解</strong>：</p>
+<div class='tw'><table><thead><tr><th>部分</th><th>公式</th><th>含义</th></tr></thead><tbody><tr><td>TF（词频）</td><td><code>1 + log(词在文档中出现次数)</code></td><td>出现越多越重要，用对数抑制高频词</td></tr><tr><td>IDF（逆文档频率）</td><td><code>log((N+1)/(df+1)) + 1</code></td><td>越少见的词越有区分度（"数据结构"比"课程"值钱）</td></tr><tr><td>TF-IDF</td><td>TF × IDF</td><td>相乘得到词权重</td></tr><tr><td>归一化</td><td>除以 L2 范数</td><td>把向量长度变成 1，这样点积就等于余弦相似度</td></tr></tbody></table></div>
+<p><strong>数据来源</strong>：<code>video.title</code>、<code>video.tags</code>、<code>video.summary</code>、<code>course.name</code>、<code>course.concepts</code> 五个字段拼接。</p>
+<p><strong>实测</strong>：词表大小 <strong>7370</strong>，也就是 116 个视频合计产生了 7370 个不同词条。</p>
+<h4 id="第二步算视频两两相似度">第二步：算视频两两相似度</h4>
+<p><code>train_model.py:52-69</code>：</p>
+<pre><code class="lang-python">def dot(a: Dict[str, float], b: Dict[str, float]) -&gt; float:
+    if len(a) &gt; len(b):
+        a, b = b, a              # 遍历更短的那个，省时间
+    return sum(value * b.get(term, 0.0) for term, value in a.items())
+
+def build_item_similarity(vectors):
+    out = {}
+    for video_id, vector in vectors.items():
+        sims = []
+        for other_id, other in vectors.items():
+            if other_id == video_id:
+                continue
+            score = dot(vector, other)         # 向量已归一化 → 点积 = 余弦相似度
+            if score &gt; 0:
+                sims.append({"video_id": other_id, "score": round(score, 6)})
+        out[video_id] = sorted(sims, key=lambda item: item["score"], reverse=True)[:8]
+    return out</code></pre>
+<p><strong>要点</strong>：</p>
+<ul><li>向量已经 L2 归一化，所以<strong>点积直接等于余弦相似度</strong>，省掉除法</li><li>只保留分数 &gt; 0 的（完全无共同词的直接丢弃）</li><li><strong>每个视频只留 top8</strong>，截断存储</li></ul>
+<p><strong>实测</strong>：116 个视频 × 每个 top8 = 928 条相似边，存在模型 JSON 里。</p>
+<h4 id="第三步在线查特征">第三步：在线查特征</h4>
+<p><code>recommender.py:140-144</code>：</p>
+<pre><code class="lang-python">sim_score = 0.0
+for watched in history:
+    for item in model["item_similarity"].get(watched, []):
+        if item["video_id"] == video["video_id"]:
+            sim_score = max(sim_score, item["score"])</code></pre>
+<p><strong>取 max 而不是 sum</strong>：只要和<strong>任意一个</strong>看过的视频很像就够了，不该因为看过很多不相关的视频而累加。这是"最大相似度"聚合策略。</p>
+<p><strong>实测</strong>：均值 0.0821，标准差 0.1415，<strong>权重 0.5383（第二大）</strong>。说明"和你已看的相似"是相当强的信号。</p>
+<hr>
+<h3 id="36-特征-5platform_preference平台偏好">3.6 特征 5：<code>platform_preference</code>（平台偏好）</h3>
+<p><strong>计算</strong>（<code>recommender.py:145-156</code>）：</p>
+<pre><code class="lang-python">platform_rows = rows(con, """
+    SELECT v.platform, COUNT(*) AS c
+    FROM behavior_log b JOIN video v ON b.video_id=v.video_id
+    WHERE b.student_id=? AND b.event_type IN ('play','complete','like','favorite')
+    GROUP BY v.platform
+""", (student["student_id"],))
+total_platform = sum(row["c"] for row in platform_rows) or 1
+platform_pref = sum(row["c"] for row in platform_rows if row["platform"] == video["platform"]) / total_platform</code></pre>
+<p><strong>逻辑</strong>：统计这个学生在各平台的活跃次数（播放/完成/点赞/收藏四类事件），算出"目标视频所在平台"占了多大比例。</p>
+<p>比如学生在 B站 有 12 次行为、MOOC 有 8 次，那么一个 B站视频的 <code>platform_pref = 12/20 = 0.6</code>。</p>
+<p><strong>数据来源</strong>：<code>behavior_log</code> 表（事件表）+ <code>video.platform</code>。</p>
+<p><strong>为什么要过滤 <code>event_type</code></strong>：表里还有 impression（曝光）这类"系统展示"事件，那不是用户主动行为，不能算偏好。</p>
+<p><strong>实测</strong>：均值 <strong>0.8571</strong>，权重 <strong>0.5279</strong>。</p>
+<p>均值 0.8571 说明行为高度集中在某一个平台——大概率是学生主要在 B站 看课，所以只要推荐 B站 视频这个特征就接近 1。</p>
+<hr>
+<h3 id="37-特征-6course_downstream_value后继课程价值">3.7 特征 6：<code>course_downstream_value</code>（后继课程价值）</h3>
+<p><strong>计算</strong>（<code>recommender.py:169</code>）：</p>
+<pre><code class="lang-python">downstream = len(rows(con, "SELECT course_id FROM course WHERE prerequisites LIKE ?",
+                      (f"%{course['course_id']}%",))) / 4</code></pre>
+<p>对应离线版本 <code>train_model.py:72-78</code>：</p>
+<pre><code class="lang-python">def descendants(courses, course_id: str) -&gt; int:
+    count = 0
+    for course in courses.values():
+        prereqs = [part.strip() for part in (course.get("prerequisites") or "").split(",") if part.strip()]
+        if course_id in prereqs:
+            count += 1
+    return count</code></pre>
+<p><strong>含义</strong>：数一数<strong>有多少门课把这门课列为先修</strong>。这就是图论里的<strong>出度</strong>（在本项目语境是"下游课程数"）。</p>
+<ul><li>C301《数据结构》被 C401、C402、C501、C502、C601、C602 共 6 门课引用 → 出度 6</li><li>一门没什么人依赖的选修课 → 出度 0</li></ul>
+<p><strong>为什么这是个有价值的特征</strong>：先修链上越靠底层的课，价值越高——学好了能解锁一大片后续课程。这是<strong>知识图谱的杠杆效应</strong>。</p>
+<p>除以 4 是经验性归一化（超过 4 门就算满分）。</p>
+<p><strong>实测</strong>：均值 0.1357，标准差 0.2587，权重 <strong>0.0754</strong>（较弱）。</p>
+<p>均值这么低说明大部分候选课的下游课程数很少。另外注意候选池里 73% 是《数据结构》的视频，它的出度是 6 → 归一化后 1.0，是全池最高的，所以这个特征实际上在<strong>帮数据结构加分</strong>。</p>
+<hr>
+<h3 id="38-特征-7major_alignment专业匹配度">3.8 特征 7：<code>major_alignment</code>（专业匹配度）</h3>
+<p><strong>计算</strong>（<code>recommender.py:41-51</code>，训练侧同款在 <code>train_model.py:81-91</code>）：</p>
+<pre><code class="lang-python">def major_alignment(student, video, course) -&gt; float:
+    video_major = (video.get("major") or "").strip()
+    course_major = (course.get("major") or "").strip()
+    if video_major:                                     # 视频标了专业
+        return 1.0 if video_major == student["major"] else 0.0
+    if course_major:                                    # 视频没标，看课程
+        return 1.0 if course_major == student["major"] else 0.55
+    text = " ".join([video.get("title") or "", video.get("tags") or "", course.get("name") or ""])
+    if student["major"] in text:                        # 都没有，查文本
+        return 0.9
+    return 0.55                                         # 兜底</code></pre>
+<p><strong>四级降级策略</strong>（这是本项目特征工程最细腻的地方）：</p>
+<div class='tw'><table><thead><tr><th>情况</th><th>返回值</th><th>逻辑</th></tr></thead><tbody><tr><td>视频有专业标注，且匹配</td><td>1.0</td><td>最强证据</td></tr><tr><td>视频有专业标注，但不匹配</td><td><strong>0.0</strong></td><td>硬否决</td></tr><tr><td>视频无标注，课程有标注且匹配</td><td>1.0</td><td>次强证据</td></tr><tr><td>视频无标注，课程有标注但不匹配</td><td>0.55</td><td>软降权</td></tr><tr><td>都没有，但标题/tags/课程名里出现了专业名</td><td>0.9</td><td>文本兜底</td></tr><tr><td>什么都没匹配上</td><td>0.55</td><td>中性值</td></tr></tbody></table></div>
+<p><strong>为什么"视频标注不匹配"给 0.0 而"课程标注不匹配"给 0.55</strong>：视频级标注是采集时精确打的，可信度高，不匹配就是明确错误；课程级标注比较粗（一门课可能跨专业），所以只做软降权。</p>
+<p><strong>实测</strong>：均值 0.3643，标准差 0.4430，权重 <strong>1.3387 —— 全场最高</strong>。</p>
+<blockquote><strong>专业匹配度是整个模型里最重要的特征</strong>，权重是第二名（ItemCF 0.5383）的 2.5 倍。 这符合业务直觉：学生最关心的就是"这课跟我专业有没有关系"。</blockquote>
+<hr>
+<h3 id="39-训练与推理的一致性">3.9 训练与推理的一致性</h3>
+<div class='tw'><table><thead><tr><th>特征</th><th>训练实现</th><th>推理实现</th><th>是否一致</th></tr></thead><tbody><tr><td>0 <code>log_popularity</code></td><td><code>train_model.py:148</code></td><td><code>recommender.py:171</code></td><td>✅ 完全相同</td></tr><tr><td>1 <code>rating</code></td><td><code>:149</code></td><td><code>:172</code></td><td>✅</td></tr><tr><td>2 <code>free_access</code></td><td><code>:150</code></td><td><code>:173</code></td><td>✅</td></tr><tr><td>3 <code>curriculum_graph</code></td><td><code>:139-146</code> SQL 判断</td><td><code>:157-168</code> 理由文本匹配</td><td>❌ <strong>不一致</strong></td></tr><tr><td>4 <code>itemcf_similarity</code></td><td><code>:122-126</code></td><td><code>:140-144</code></td><td>✅</td></tr><tr><td>5 <code>platform_preference</code></td><td><code>:127-138</code></td><td><code>:145-156</code></td><td>✅</td></tr><tr><td>6 <code>course_downstream_value</code></td><td><code>:154</code> <code>descendants()</code></td><td><code>:169</code> SQL COUNT</td><td>✅ 等价</td></tr><tr><td>7 <code>major_alignment</code></td><td><code>:81-91</code></td><td><code>:41-51</code></td><td>✅ 函数体相同</td></tr></tbody></table></div>
+<hr>
+<h2 id="4-排序模型轻量逻辑回归">4. 排序模型：轻量逻辑回归</h2>
+<h3 id="41-标准化">4.1 标准化</h3>
+<p><code>recommender.py:182-185</code>：</p>
+<pre><code class="lang-python">def score(features: List[float], model: Dict[str, Any]) -&gt; float:
+    ranker = model["ranker"]
+    x = [(features[i] - ranker["means"][i]) / ranker["stdevs"][i] for i in range(len(features))]
+    return sigmoid(sum(ranker["weights"][i] * x[i] for i in range(len(x))) + ranker["bias"])</code></pre>
+<p><strong>Z-score 标准化</strong>：<code>(x - 均值) / 标准差</code>，把每个特征拉成均值 0、标准差 1。</p>
+<p><strong>为什么必须做</strong>：<code>log_popularity</code> 在 0.5~0.95 之间波动，<code>itemcf_similarity</code> 在 0~0.3 之间波动。如果不标准化，梯度下降会在"数值大"的特征上走得太快、"数值小"的特征上几乎不动，收敛慢且不稳。</p>
+<p><strong>均值和标准差存在模型里</strong>（<code>ranker["means"]</code> / <code>ranker["stdevs"]</code>），推理时必须用<strong>训练时</strong>的这份，不能用线上数据重算——否则线上线下尺度不同，预测全错。</p>
+<h3 id="42-模型形式">4.2 模型形式</h3>
+<pre><code>z = Σ(weight_i × x_i) + bias
+predicted_ctr = sigmoid(z) = 1 / (1 + e^(-z))</code></pre>
+<p><code>sigmoid</code> 定义在 <code>:29-34</code>：</p>
+<pre><code class="lang-python">def sigmoid(value: float) -&gt; float:
+    if value &lt; -30:
+        return 0.0          # 防止 math.exp 溢出
+    if value &gt; 30:
+        return 1.0
+    return 1 / (1 + math.exp(-value))</code></pre>
+<p>输出落在 (0, 1) 区间，可以解释为「点击概率」——这就是推荐里常说的 <strong>pCTR（predicted Click-Through Rate）</strong>。</p>
+<p>那两个 ±30 的截断是工程防护：<code>math.exp(1000)</code> 会抛 <code>OverflowError</code>，超出就饱和到 0 或 1。</p>
+<h3 id="43-训练批量梯度下降-l2-正则">4.3 训练：批量梯度下降 + L2 正则</h3>
+<p><code>train_model.py:167-191</code>：</p>
+<pre><code class="lang-python">def train_logistic(samples: List[Tuple[List[float], int]]) -&gt; Dict[str, Any]:
+    dims = len(samples[0][0])
+    # ① 先算每个维度的均值和标准差，用于标准化
+    means = [sum(sample[0][i] for sample in samples) / len(samples) for i in range(dims)]
+    stdevs = []
+    for i in range(dims):
+        var = sum((sample[0][i] - means[i]) ** 2 for sample in samples) / len(samples)
+        stdevs.append(math.sqrt(var) or 1.0)      # 方差为 0 时兜底成 1，避免除零
+
+    weights = [0.0 for _ in range(dims)]
+    bias = 0.0
+    lr = 0.18                                     # 学习率
+    l2 = 0.015                                    # L2 正则系数
+
+    for _ in range(480):                          # 迭代 480 轮
+        grad_w = [0.0 for _ in range(dims)]
+        grad_b = 0.0
+        for features, label in samples:           # 遍历全部样本（批量梯度下降）
+            x = [(features[i] - means[i]) / stdevs[i] for i in range(dims)]
+            pred = sigmoid(sum(weights[i] * x[i] for i in range(dims)) + bias)
+            err = pred - label                    # 预测 - 真实，交叉熵的梯度形式
+            for i in range(dims):
+                grad_w[i] += err * x[i] + l2 * weights[i]   # 数据梯度 + L2 惩罚
+            grad_b += err
+        scale = 1 / len(samples)
+        weights = [weights[i] - lr * grad_w[i] * scale for i in range(dims)]
+        bias -= lr * grad_b * scale
+    return {"weights": weights, "bias": bias, "means": means, "stdevs": stdevs}</code></pre>
+<p><strong>逐点解释</strong>：</p>
+<div class='tw'><table><thead><tr><th>参数</th><th>值</th><th>作用</th></tr></thead><tbody><tr><td><code>lr</code>（学习率）</td><td>0.18</td><td>每步走多远。太大震荡，太小收敛慢</td></tr><tr><td><code>l2</code>（正则）</td><td>0.015</td><td>惩罚大权重，防止过拟合。加在梯度里的 <code>l2 * weights[i]</code> 就是它的导数</td></tr><tr><td>迭代轮数</td><td>480</td><td>全量跑 480 遍。样本只有 175 条，所以直接批量梯度下降足够快</td></tr><tr><td><code>err = pred - label</code></td><td>——</td><td>逻辑回归 + 交叉熵损失时，梯度恰好化简成这个形式</td></tr><tr><td><code>scale = 1/len(samples)</code></td><td>——</td><td>把累加的梯度变成平均值</td></tr></tbody></table></div>
+<p><strong>为什么不用 sklearn</strong>：整个项目<strong>零机器学习依赖</strong>，<code>requirements.txt</code> 只有 fastapi / uvicorn / pydantic / requests。核心算法全部手写，好处是每一步都可解释、能在答辩时讲清楚，也避免了额外的环境安装风险。</p>
+<h3 id="44-真实训练结果解读">4.4 真实训练结果解读</h3>
+<p>模型文件：<code>data/artifacts/ranker_model.json</code>（995 KB），<code>report</code> 字段：</p>
+<pre><code class="lang-json">{
+  "sample_count": 175,
+  "positive_rate": 0.1429,
+  "auc": 0.9475,
+  "choice": "Hybrid recall + TF-IDF ItemCF + lightweight logistic ranker; CPU-only, no heavy GPU/vector DB dependency."
+}</code></pre>
+<p><strong>学到的权重</strong>（按绝对值排序）：</p>
+<div class='tw'><table><thead><tr><th>排名</th><th>特征</th><th>权重</th><th>均值</th><th>标准差</th><th>解读</th></tr></thead><tbody><tr><td>1</td><td><code>major_alignment</code></td><td><strong>+1.3387</strong></td><td>0.3643</td><td>0.4430</td><td>专业匹配最关键</td></tr><tr><td>2</td><td><code>itemcf_similarity</code></td><td><strong>+0.5383</strong></td><td>0.0821</td><td>0.1415</td><td>和你口味像的优先</td></tr><tr><td>3</td><td><code>platform_preference</code></td><td><strong>+0.5279</strong></td><td>0.8571</td><td>0.3499</td><td>你常去的平台优先</td></tr><tr><td>4</td><td><code>log_popularity</code></td><td><strong>+0.4514</strong></td><td>0.7960</td><td>0.1975</td><td>热度有正向作用</td></tr><tr><td>5</td><td><code>course_downstream_value</code></td><td>+0.0754</td><td>0.1357</td><td>0.2587</td><td>弱正向</td></tr><tr><td>6</td><td><code>free_access</code></td><td>0.0000</td><td>1.0000</td><td>1.0000</td><td><strong>失效</strong>（方差为 0）</td></tr><tr><td>7</td><td><code>rating</code></td><td>-0.0500</td><td>0.8938</td><td>0.0562</td><td>近似无效</td></tr><tr><td>8</td><td><code>curriculum_graph</code></td><td><strong>-0.1268</strong></td><td>0.2843</td><td>0.3662</td><td>负向，见下</td></tr><tr><td>—</td><td><code>bias</code></td><td>-2.8776</td><td>—</td><td>—</td><td>基础点击率很低</td></tr></tbody></table></div>
+<p><strong>bias = -2.8776 的含义</strong>：<code>sigmoid(-2.88) ≈ 0.053</code>。也就是说，如果所有特征都是平均值，模型预测点击率约 <strong>5.3%</strong>。这和实际正样本率 14.29% 相比偏低，但因为特征标准化后均值是 0，符合预期。</p>
+<p><strong>三个值得注意的现象</strong>：</p>
+<ol><li><strong><code>free_access</code> 权重为 0</strong> —— 训练数据里所有候选都是免费视频，特征坍缩。</li><li><strong><code>rating</code> 权重为负</strong> —— 评分方差太小（标准差 0.0562），学到的是噪声。</li><li><strong><code>curriculum_graph</code> 权重为负</strong> —— 反直觉。可能原因：①与 <code>major_alignment</code> 共线，信息被抢走；②图谱命中的课是"应该学"而非"想学"，用户实际点击意愿低于内容相似的课。</li></ol>
+<p><strong>AUC = 0.9475 要谨慎解读</strong>：175 个样本、正样本仅 25 个，样本量很小，AUC 容易被少数样本拉高。这个数字说明"模型能把正负样本排开"，但不能当作泛化能力的证据。</p>
+<hr>
+<h2 id="5-混合打分与-mmr-重排">5. 混合打分与 MMR 重排</h2>
+<h3 id="51-混合打分模型分-规则分-质量分">5.1 混合打分：模型分 + 规则分 + 质量分</h3>
+<p>模型输出的 pCTR 不是唯一依据，最终混合分还要加上另外三项（<code>recommender.py:283-289</code>）：</p>
+<pre><code class="lang-python">predicted_ctr = score(features, model)
+blended_score = (
+    0.62 * predicted_ctr              # 模型预测的点击概率
+    + 0.2 * recall_strength(reason)   # 这条召回路本身有多可信
+    + 0.12 * freshness_bonus(video)   # 视频本身的质量
+    + 0.06 * features[2]              # 免费可及性（features[2] = free_access）
+)</code></pre>
+<p><strong>四项权重之和恰好是 1.00</strong>（0.62 + 0.20 + 0.12 + 0.06），这是一个完整的加权方案。</p>
+<div class='tw'><table><thead><tr><th>项</th><th>权重</th><th>来源</th></tr></thead><tbody><tr><td><code>predicted_ctr</code></td><td>0.62</td><td>逻辑回归模型</td></tr><tr><td><code>recall_strength(reason)</code></td><td>0.20</td><td>按召回路径给的先验分</td></tr><tr><td><code>freshness_bonus(video)</code></td><td>0.12</td><td>热度 + 评分的加权</td></tr><tr><td><code>features[2]</code></td><td>0.06</td><td>免费可及性，直接复用第 2 维特征</td></tr></tbody></table></div>
+<blockquote><strong>一个精妙的设计</strong>：<code>free_access</code> 在逻辑回归里学到的权重是 0（见 3.3 节），看起来完全失效了。但这里它通过 <code>0.06 * features[2]</code> 又以规则的形式回来了——免费视频（值 1.0）比付费视频（值 0.78）多得 <code>0.06 × 0.22 ≈ 0.013</code> 分。  这说明工程上的"特征失效"不等于"信息失效"：<strong>当模型学不动某个特征时，可以用业务规则手工兜底</strong>。这种"模型 + 规则"的双轨设计，是推荐系统里很常见的稳健性手段。</blockquote>
+<p><code>recall_strength</code>（<code>:188-199</code>）按召回路径给分：</p>
+<pre><code class="lang-python">def recall_strength(reason: str) -&gt; float:
+    if "正在学习" in reason: return 1.0     # 正在学的课，需求最急
+    if "后继" in reason:     return 0.86    # 学完基础可以进阶
+    if "专业方向" in reason: return 0.78    # 专业对口
+    if "下学期" in reason:   return 0.74    # 预习
+    if "ItemCF" in reason:   return 0.68    # 相似召回，信号较弱
+    return 0.52                             # 兜底</code></pre>
+<p><code>freshness_bonus</code>（<code>:202-207</code>）：</p>
+<pre><code class="lang-python">def freshness_bonus(video: Dict[str, Any]) -&gt; float:
+    popularity = math.log1p(video["popularity"]) / 14.0
+    rating = float(video["rating"]) / 5.0
+    return min(1.0, 0.58 * popularity + 0.42 * rating)</code></pre>
+<p><strong>为什么要混合而不是纯靠模型</strong>：模型只有 175 个训练样本，容易对某些召回路过度自信。规则分提供了一个"业务先验"兜底——即使模型说 ItemCF 的候选好，也不会让"正在学的课"排到后面去。</p>
+<blockquote>注意 <code>recall_strength</code> 是靠<strong>匹配 reason 字符串</strong>判断的。所以第 2 节讲的 <code>setdefault</code> 先到先得，会直接影响这里的分数——理由文本被谁先写上，就决定了走哪个分支。</blockquote>
+<h3 id="511-可观测性feature_trace">5.1.1 可观测性：<code>feature_trace</code></h3>
+<p><code>recommender.py:290-294</code> 把每个候选的 8 维特征原样塞进了返回结果：</p>
+<pre><code class="lang-python">item = video_payload(con, video)
+item["predicted_ctr"] = round(predicted_ctr, 4)
+item["score"] = round(blended_score, 4)
+item["reason"] = reason
+item["feature_trace"] = dict(zip(model["report"]["feature_names"], [round(v, 4) for v in features]))</code></pre>
+<p>这意味着调 API 时能直接看到<strong>模型到底看到了什么</strong>。实测学生 <code>20240101</code> 的前两条推荐：</p>
+<p><strong>第 1 条</strong></p>
+<pre><code class="lang-json">{
+  "title": "【看漫画学计算机】不愧是B站最受欢迎的计算机课程…",
+  "predicted_ctr": 0.5506,
+  "score": 0.6289,
+  "reason": "基于你的学习记录做 ItemCF 相似召回",
+  "feature_trace": {
+    "log_popularity": 0.7043,          "rating": 0.842,
+    "free_access": 1.0,                "curriculum_graph": 0.4,
+    "itemcf_similarity": 0.3941,       "platform_preference": 1.0,
+    "course_downstream_value": 0.0,    "major_alignment": 1.0
+  }
+}</code></pre>
+<p><strong>第 2 条</strong></p>
+<pre><code class="lang-json">{
+  "title": "上海交大算法与数据结构教程",
+  "predicted_ctr": 0.4286,
+  "score": 0.6151,
+  "reason": "正在学习《数据结构》，召回同主题视频",
+  "feature_trace": {
+    "log_popularity": 0.6738,          "rating": 0.843,
+    "free_access": 1.0,                "curriculum_graph": 1.0,
+    "itemcf_similarity": 0.2617,       "platform_preference": 1.0,
+    "course_downstream_value": 1.0,    "major_alignment": 1.0
+  }
+}</code></pre>
+<p><strong>手算验证</strong>：用第 2 条的 <code>feature_trace</code> 反推 <code>score</code>，能完整对上——</p>
+<pre><code>predicted_ctr   = 0.4286                     （模型直接给出）
+recall_strength = 1.0                        （"正在学习"分支，见 :189-190）
+freshness_bonus = 0.58 × 0.6738 + 0.42 × 0.843 = 0.7449
+features[2]     = 1.0                        （free_access）
+
+score = 0.62 × 0.4286      = 0.2657
+      + 0.20 × 1.0         = 0.2000
+      + 0.12 × 0.7449      = 0.0894
+      + 0.06 × 1.0         = 0.0600
+      ──────────────────────────────
+                          = 0.6151   ✅ 与 API 返回值完全一致</code></pre>
+<p><strong>一个耐人寻味的现象</strong>：第 1 条（ItemCF 召回，<code>curriculum_graph=0.4</code>）的最终分 0.6289 <strong>反超</strong>了第 2 条（正在学，<code>curriculum_graph=1.0</code>）的 0.6151。</p>
+<p>原因有两个，都跟 3.4 节的负权重有关：</p>
+<ol><li><code>curriculum_graph</code> 权重是 <strong>-0.1268</strong>，所以 <code>graph=1.0</code> 反而<strong>压低</strong>了 pCTR（第 2 条 0.4286 &lt; 第 1 条 0.5506）</li><li>规则分只补回 <code>0.2 × (1.0 − 0.68) = 0.064</code>，抵不过模型分的差距 <code>0.62 × (0.5506 − 0.4286) = 0.076</code></li></ol>
+<p><strong>结论</strong>：当模型权重与业务直觉冲突时，<code>recall_strength</code> 那 0.2 的权重<strong>未必救得回来</strong>。要修正的话，要么提高规则分权重，要么先解决 <code>curriculum_graph</code> 的负权重问题。</p>
+<blockquote>这也是为什么生产环境一定要有 <code>feature_trace</code> 这类可观测性字段——它能让你在 5 分钟内定位"为什么这条不该推的排在前面"，而不是靠猜。</blockquote>
+<h3 id="52-mmr-重排解决一屏全是一样东西">5.2 MMR 重排：解决"一屏全是一样东西"</h3>
+<p><strong>问题</strong>：第 2.6 节实测显示，63 个候选里 46 个是《数据结构》的。如果只按分数排序，<strong>前 9 条可能全是数据结构</strong>，用户体验极差。</p>
+<p><strong>MMR（Maximal Marginal Relevance）</strong> 的核心思想：挑选时同时考虑<strong>相关性</strong>和<strong>与已选内容的差异度</strong>。</p>
+<p><code>recommender.py:220-240</code>：</p>
+<pre><code class="lang-python">def mmr_rerank(items, model, limit):
+    selected = []
+    pool = items[:]
+    platform_seen = defaultdict(int)
+    while pool and len(selected) &lt; limit:
+        best_index = 0
+        best_score = -1.0
+        for index, item in enumerate(pool):
+            # ① 与已选内容的最大相似度 = 冗余度
+            redundancy = max(
+                [similarity_between(model, item["video_id"], chosen["video_id"]) for chosen in selected] or [0.0]
+            )
+            # ② 同平台已出现次数 = 平台惩罚
+            platform_penalty = 0.015 * platform_seen[item["platform"]]
+            # ③ 综合打分
+            rerank_score = 0.86 * item["score"] - 0.08 * redundancy - platform_penalty
+            if rerank_score &gt; best_score:
+                best_index = index
+                best_score = rerank_score
+        chosen = pool.pop(best_index)
+        chosen["rerank_score"] = round(best_score, 4)
+        platform_seen[chosen["platform"]] += 1
+        selected.append(chosen)
+    return selected</code></pre>
+<p><strong>贪心逐条挑选</strong>，每条都重新算一遍：</p>
+<pre><code>最终分 = 0.86 × 相关性  −  0.08 × 冗余度  −  0.015 × 该平台已选次数</code></pre>
+<div class='tw'><table><thead><tr><th>项</th><th>系数</th><th>作用</th></tr></thead><tbody><tr><td><code>0.86 * item["score"]</code></td><td>0.86</td><td>主要看相关性</td></tr><tr><td><code>- 0.08 * redundancy</code></td><td>-0.08</td><td>和已选内容像 → 扣分</td></tr><tr><td><code>- 0.015 * platform_seen[platform]</code></td><td>-0.015</td><td>同平台堆积 → 逐次加重惩罚</td></tr></tbody></table></div>
+<p><strong>冗余度怎么算</strong>（<code>:210-217</code>）：</p>
+<pre><code class="lang-python">def similarity_between(model, left, right) -&gt; float:
+    for item in model["item_similarity"].get(left, []):
+        if item["video_id"] == right:
+            return float(item["score"])
+    for item in model["item_similarity"].get(right, []):
+        if item["video_id"] == left:
+            return float(item["score"])
+    return 0.0</code></pre>
+<p>双向查表（因为 top8 截断可能导致单向缺失），查不到就是 0（不相似）。</p>
+<p><strong>平台惩罚是累进的</strong>：同一平台第 1 条扣 0.015，第 2 条扣 0.030，第 3 条扣 0.045……所以一个平台不太可能连出很多条。</p>
+<blockquote>教学点：MMR 是<strong>用精度换多样性</strong>的典型手段。调大 <code>redundancy</code> 系数会更"杂"，调小会更"专"。在 learn 演练场里，完整方案的多样性指标（0.333）明显高于其他模型，就是这一步的功劳。</blockquote>
+<hr>
+<h2 id="6-训练数据从哪来">6. 训练数据从哪来</h2>
+<h3 id="61-样本表recommend_log">6.1 样本表：<code>recommend_log</code></h3>
+<p>模型<strong>不是</strong>从 <code>learning_record</code>（学习记录）训练的，而是从 <code>recommend_log</code>（推荐日志）：</p>
+<pre><code class="lang-sql">SELECT * FROM recommend_log
+WHERE student_id IN (?,?,?,?,?)
+ORDER BY student_id, candidate_id</code></pre>
+<p>（<code>train_model.py:222-230</code>）</p>
+<p><strong>表的规模实测</strong>：</p>
+<div class='tw'><table><thead><tr><th>表</th><th>行数</th><th>作用</th></tr></thead><tbody><tr><td><code>recommend_log</code></td><td><strong>175</strong></td><td><strong>训练样本来源</strong></td></tr><tr><td><code>behavior_log</code></td><td>35</td><td>平台偏好特征来源</td></tr><tr><td><code>learning_record</code></td><td>25</td><td>历史/已完成课程</td></tr><tr><td><code>video</code></td><td>116</td><td>候选物品</td></tr><tr><td><code>course</code></td><td>17</td><td>课程图谱</td></tr><tr><td><code>student</code></td><td>10</td><td>学生画像</td></tr></tbody></table></div>
+<h3 id="62-样本构造">6.2 样本构造</h3>
+<p><code>train_model.py:231-241</code>：</p>
+<pre><code class="lang-python">for log in logs:
+    if skip_pairs and (log["student_id"], log["candidate_id"]) in skip_pairs:
+        continue                                    # 留一法时跳过被藏起来的那条
+    student = rows(con, "SELECT * FROM student WHERE student_id=?", (log["student_id"],))[0]
+    video = videos_by_id[log["candidate_id"]]
+    samples.append((
+        feature_vector(con, student, video, courses[video["course_id"]],
+                       courses, videos_by_id, item_similarity),    # 8 维特征
+        int(log["click"]),                                          # 标签
+    ))</code></pre>
+<p><strong>一条样本 = (某学生对某视频的 8 维特征, 他有没有点击)</strong></p>
+<ul><li><strong>特征</strong>：第 3 节的 8 个数字</li><li><strong>标签</strong>：<code>recommend_log.click</code>（0 或 1）</li></ul>
+<p><strong>实测标签分布</strong>：</p>
+<ul><li>正样本率 <strong>0.1429</strong> = 25 / 175</li><li>场景分布：全部 175 条都是 <code>professional</code>（专业路径），其他场景（岗位、考研）没有日志</li></ul>
+<p><strong>这解释了为什么正样本率这么低</strong>：推荐系统里用户不点的是大多数，1:6 的正负比是正常的。</p>
+<h3 id="63-数据是怎么生成的">6.3 数据是怎么生成的</h3>
+<p><code>recommend_log</code> 的数据有两部分来源：</p>
+<ol><li><strong>历史日志回填</strong>：<code>data_acquisition.py</code> 种子数据里生成的模拟日志</li><li><strong>实时写入</strong>：用户在页面上点击推荐卡片时，<code>app.py</code> 会往表里插一条记录</li></ol>
+<p>所以模型会随着使用持续积累样本。但当前只有 175 条，属于<strong>极小样本训练</strong>——这也是为什么模型选择了 8 个特征 + 强 L2 正则：参数少、不容易过拟合。</p>
+<hr>
+<h2 id="7-评估方法">7. 评估方法</h2>
+<h3 id="71-留一法leave-one-out">7.1 留一法（Leave-One-Out）</h3>
+<p>定义在 <code>backend/evaluate_model.py</code>。核心思路：</p>
+<pre><code>对每个学生：
+    取出他所有"弱正样本"（进度 ≥ 25% 的视频）
+    对每一条：
+        ① 把它从候选池里"藏起来"（但其他历史保留）
+        ② 重新训练模型（用不包含这条的样本）
+        ③ 让模型生成推荐
+        ④ 看被藏起来的那条有没有进 top5 / top9</code></pre>
+<p><strong>关键实现</strong>：<code>evaluate_model.py:86-91</code></p>
+<pre><code class="lang-python">recs = recommender.recommend_professional(
+    student_id,
+    "all",
+    model_override=fold_model,
+    exclude_video_ids=set(context_ids),   # 排除集合
+    context_video_ids=set(context_ids),   # 上下文集合
+)</code></pre>
+<p>这两个参数从外部注入，是为了<strong>假装那条记录不存在</strong>——不能真去删数据库（会污染线上数据），所以从参数传进去。这对应 <code>recommender.py:54-64</code> 里 <code>_touched_video_ids()</code> 的 <code>override</code> 分支。</p>
+<p><strong>为什么叫"留一"</strong>：每次留出一个样本当"答案"，其余用于构造候选池。</p>
+<h3 id="72-指标">7.2 指标</h3>
+<div class='tw'><table><thead><tr><th>指标</th><th>含义</th><th>本项目是否使用</th></tr></thead><tbody><tr><td>HitRate@5</td><td>前 5 条里命中至少一条就算成功</td><td>✅ 主指标</td></tr><tr><td>HitRate@9</td><td>前 9 条里命中</td><td>✅</td></tr><tr><td>Precision@5</td><td>前 5 条里命中几条 / 5</td><td>参考</td></tr><tr><td>NDCG@5</td><td>命中项排得越靠前分越高</td><td>参考</td></tr><tr><td>Coverage</td><td>推荐覆盖了多少比例的物品池</td><td>参考</td></tr><tr><td>Diversity</td><td>推荐结果覆盖多少个不同平台</td><td>参考</td></tr></tbody></table></div>
+<h3 id="73-实测评估结果">7.3 实测评估结果</h3>
+<p>在 learn 教学系统里对 7 个模型做了横向对比，<strong>P@5 呈现清晰的递进阶梯</strong>：</p>
+<div class='tw'><table><thead><tr><th>模型</th><th>思路</th><th>P@5</th></tr></thead><tbody><tr><td>L1 热度榜</td><td>只按播放量排序</td><td>0.00</td></tr><tr><td>L2 评分榜</td><td>按评分 + 热度</td><td>0.00</td></tr><tr><td>L3 课程图谱规则</td><td>本项目三条规则</td><td>0.20</td></tr><tr><td>L4 TF-IDF 内容相似</td><td>文本向量余弦</td><td>0.40</td></tr><tr><td>L5 ItemCF</td><td>相似度表</td><td>0.40</td></tr><tr><td>L6 逻辑回归</td><td>8 维特征</td><td>0.80</td></tr><tr><td>L7 完整方案</td><td>召回 + LR + MMR</td><td>0.80，且多样性翻倍</td></tr></tbody></table></div>
+<p>这就是"<strong>为什么需要这么复杂的算法</strong>"的最好证明——从 0 到 0.8 的跃升，每一步都有明确的贡献。</p>
+<hr>
+<h2 id="8-代码索引表">8. 代码索引表</h2>
+<h3 id="81-推荐主流程">8.1 推荐主流程</h3>
+<div class='tw'><table><thead><tr><th>功能</th><th>文件</th><th>行号</th></tr></thead><tbody><tr><td>专业路径推荐入口</td><td><code>backend/recommender.py</code></td><td>250-296</td></tr><tr><td>混合召回</td><td>同上</td><td>67-126</td></tr><tr><td>特征抽取（线上）</td><td>同上</td><td>129-179</td></tr><tr><td>逻辑回归打分</td><td>同上</td><td>182-185</td></tr><tr><td>召回强度</td><td>同上</td><td>188-199</td></tr><tr><td>质量加分</td><td>同上</td><td>202-207</td></tr><tr><td>相似度查询</td><td>同上</td><td>210-217</td></tr><tr><td>MMR 重排</td><td>同上</td><td>220-240</td></tr><tr><td>学生画像</td><td>同上</td><td>299-317</td></tr><tr><td>岗位 + 技能路径</td><td>同上</td><td>320-333</td></tr><tr><td>技能图谱拓扑排序</td><td>同上</td><td>336-380</td></tr></tbody></table></div>
+<h3 id="82-训练管线">8.2 训练管线</h3>
+<div class='tw'><table><thead><tr><th>功能</th><th>文件</th><th>行号</th></tr></thead><tbody><tr><td>中文分词 + bigram</td><td><code>backend/train_model.py</code></td><td>23-28</td></tr><tr><td>TF-IDF 向量化</td><td>同上</td><td>31-49</td></tr><tr><td>稀疏点积</td><td>同上</td><td>52-55</td></tr><tr><td>相似度表构建</td><td>同上</td><td>58-69</td></tr><tr><td>后继课程计数</td><td>同上</td><td>72-78</td></tr><tr><td>专业匹配度</td><td>同上</td><td>81-91</td></tr><tr><td>用户历史</td><td>同上</td><td>94-102</td></tr><tr><td>特征抽取（训练）</td><td>同上</td><td>105-156</td></tr><tr><td>梯度下降训练</td><td>同上</td><td>167-191</td></tr><tr><td>AUC 计算</td><td>同上</td><td>194-210</td></tr><tr><td>样本构造</td><td>同上</td><td>213-242</td></tr><tr><td>模型落盘</td><td>同上</td><td>313-320</td></tr></tbody></table></div>
+<h3 id="83-数据来源">8.3 数据来源</h3>
+<div class='tw'><table><thead><tr><th>数据</th><th>文件</th><th>位置</th></tr></thead><tbody><tr><td>课程图谱种子</td><td><code>backend/data_acquisition.py</code></td><td>59-70</td></tr><tr><td>建表 SQL</td><td>同上</td><td>165-270</td></tr><tr><td>技能课程映射</td><td>同上</td><td>99-115</td></tr><tr><td>学习记录生成</td><td><code>backend/student_profiles.py</code></td><td>130-215</td></tr><tr><td>实时数据采集</td><td><code>backend/live_collectors.py</code></td><td>全文</td></tr><tr><td>评估（留一法）</td><td><code>backend/evaluate_model.py</code></td><td>60-130</td></tr><tr><td>数据质量检查</td><td><code>backend/data_quality.py</code></td><td>全文</td></tr></tbody></table></div>
+<hr>
+<h2 id="9-已知问题与改进建议">9. 已知问题与改进建议</h2>
+<h3 id="91-特征不一致中优先级">9.1 特征不一致（中优先级）</h3>
+<p><strong>问题</strong>：<code>curriculum_graph</code> 在训练时用 SQL 判断（未命中 = 0.0），推理时用推荐理由文本判断（未命中 = 0.4）。同一门课在不同阶段取值不同。</p>
+<p><strong>影响</strong>：模型权重建立在错误分布上。实测该特征权重为负（-0.1268），部分原因可能就是这个偏差。</p>
+<p><strong>修复思路</strong>：把训练侧的判断逻辑抽成一个函数，两边共用。理想做法是让 <code>professional_candidates</code> 返回结构化标签（如 <code>recall_type="studying"</code>）而不是拼中文句子，再由标签算分——这样也顺便解决了下面 9.2。</p>
+<h3 id="92-靠中文文本匹配判断召回类型中优先级">9.2 靠中文文本匹配判断召回类型（中优先级）</h3>
+<p><strong>问题</strong>：<code>recall_strength()</code> 和 <code>graph_score</code> 靠 <code>if "正在学习" in reason</code> 这种字符串包含判断。推荐理由文案一旦改动（比如把"正在学习"改成"在学"），分数计算会静默失效。</p>
+<p><strong>修复思路</strong>：<code>reasons</code> 从 <code>Dict[str, str]</code> 改成 <code>Dict[str, Tuple[str, str]]</code>，第一个元素是类型枚举，第二个是展示文案。</p>
+<h3 id="93-setdefault-导致理由归属被抢先低优先级">9.3 <code>setdefault</code> 导致理由归属被抢先（低优先级）</h3>
+<p><strong>问题</strong>：三条图谱规则按顺序执行，<code>reasons.setdefault</code> 先到先得。规则 1（正在学）会把数据结构的所有视频占掉，导致规则 2（学过后继）对同一批视频无法写入自己的理由。</p>
+<p><strong>实测证据</strong>：63 个候选里，"正在学习"46 条、"后继"只有 3 条。"后继"规则并非无效，而是被抢先了。</p>
+<p><strong>修复思路</strong>：改成带优先级的写入（高优先级理由可覆盖低优先级），或允许一个视频挂多个理由标签。</p>
+<h3 id="94-prerequisites-like-模糊匹配隐患低优先级">9.4 <code>prerequisites LIKE</code> 模糊匹配隐患（低优先级）</h3>
+<p><strong>问题</strong>：<code>LIKE '%C301%'</code> 会匹配到 <code>C3011</code>、<code>XC301</code> 这类 ID。</p>
+<p><strong>当前影响</strong>：无。课程 ID 都是 4 位（C101~C602），不会误伤。</p>
+<p><strong>修复思路</strong>：用 <code>',' || prerequisites || ',' LIKE '%,C301,%'</code> 精确匹配逗号边界，或把先修关系拆成独立的关联表。</p>
+<h3 id="95-训练样本量过小需知晓">9.5 训练样本量过小（需知晓）</h3>
+<p><strong>现状</strong>：175 条样本、25 个正样本。</p>
+<p><strong>影响</strong>：AUC 0.9475 参考价值有限；模型对数据波动敏感；新增几十条日志就可能显著改变权重。</p>
+<p><strong>建议</strong>：在答辩材料中如实说明这是"小样本演示级模型"，并指出扩大样本后的优化方向。不要把它包装成工业级效果。</p>
+<h3 id="96-free_access-在模型内部失效低优先级">9.6 <code>free_access</code> 在模型内部失效（低优先级）</h3>
+<p><strong>问题</strong>：所有训练样本的候选视频都是免费的，导致特征方差为 0，标准化后恒为 0，权重训练结果正好是 0.0000。这个特征在逻辑回归里占了一个维度，却没提供任何信息。</p>
+<p><strong>缓解</strong>：混合打分阶段用 <code>0.06 * features[2]</code> 手工补回了一点作用（见 5.1 节），所以业务上没出问题。</p>
+<p><strong>修复思路</strong>：让训练样本覆盖付费视频；或者干脆从特征向量里删掉它、只保留混合分那一项，省一个模型维度。</p>
+<h3 id="97-train_modelpy314-调用不存在的函数已确认-bug">9.7 <code>train_model.py:314</code> 调用不存在的函数（已确认 bug）</h3>
+<pre><code class="lang-python">def main() -&gt; None:
+    bundle = train_rank_model()      # ← 函数不存在，实际叫 train_fold_model</code></pre>
+<p>文件里定义的函数名是 <code>train_fold_model</code>（<code>:245</code>），没有 <code>train_rank_model</code>。直接执行 <code>python -m backend.train_model</code> 会抛 <code>NameError</code>。</p>
+<p><strong>为什么平时不炸</strong>：<code>app.py</code> 启动时的 <code>bootstrap()</code> 会先检查模型文件是否存在，存在就跳过训练。当前 <code>ranker_model.json</code> 在（995 KB），所以这条路径从没被走到。</p>
+<p><strong>最小修复</strong>：把 <code>:314</code> 改成 <code>bundle = train_fold_model()</code>。</p>
+<hr>
+<h2 id="附一页速查">附：一页速查</h2>
+<pre><code>召回（116 → 63）
+  ├─ 课程图谱：正在学→同课 / 学过→后继 / 下学期→预习   (recommender.py:77-92)
+  ├─ ItemCF：查相似表 top4                            (:93-96)
+  ├─ 专业方向：major 精确匹配 top16                    (:97-103)
+  ├─ 专业不匹配剔除                                    (:104-113)
+  └─ 热门兜底 top10                                    (:114-125)
+
+特征（8 维，每维 0~1）
+  0 log_popularity          log1p(播放量)/14
+  1 rating                  评分/5
+  2 free_access             1 - is_paid×0.22          [权重 0，失效]
+  3 curriculum_graph        1.0 / 0.8 / 0.65 / 0.4    [权重 -0.13]
+  4 itemcf_similarity       历史×相似表取 max          [权重 0.54]
+  5 platform_preference     目标平台行为数/总行为数      [权重 0.53]
+  6 course_downstream_value 下游课程数/4               [权重 0.08]
+  7 major_alignment         四级降级匹配                [权重 1.34 ★最重要]
+
+排序
+  z = Σ(w·x_标准化) + bias(-2.88)
+  pCTR = sigmoid(z)
+
+混合
+  0.62×pCTR + 0.20×召回强度 + 0.12×质量分
+
+重排（63 → 9）
+  MMR：0.86×相关性 − 0.08×冗余度 − 0.015×平台已选次数
+
+训练
+  样本：recommend_log 175 条（正样本率 14.29%）
+  损失：交叉熵 + L2(0.015)
+  优化：批量梯度下降，lr=0.18，480 轮
+  评估：留一法，HitRate@5/@9</code></pre>
+<hr>
+<p>*文档生成于 2026-09-17，对应 xuetu-lite-rebuild 项目当前源码版本。*</p>
+</div>
+</body>
+</html>

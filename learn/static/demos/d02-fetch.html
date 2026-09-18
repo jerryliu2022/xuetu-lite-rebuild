@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<!--
+  知识点：fetch 调用后端接口（前后端联调的核心）
+  归属：前端
+  源码出处：frontend/app.js:18-26   function api(path, options)
+           frontend/app.js:114    await api(`/api/profile/${state.studentId}`)
+           backend/app.py:137     @app.get("/api/profile/{student_id}")
+
+  这一页是整个项目最重要的一块：前端不碰数据库，它只会做三件事
+    1. 用 fetch 发一个 HTTP 请求给后端某个 URL
+    2. 后端查完库返回一个 JSON
+    3. 前端把 JSON 渲染成页面
+
+  下面的 fetch 打的是正在运行的真实服务 http://127.0.0.1:8765，
+  所以你看到的返回数据是项目真实数据。
+-->
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>fetch 调用后端接口</title>
+  <style>
+    body { font-family: "Microsoft YaHei", sans-serif; padding: 24px; background: #f6f7fb; color: #1f2430; }
+    button { padding: 8px 14px; margin: 4px 4px 8px 0; border: none; border-radius: 8px;
+             background: #3b6cf6; color: #fff; cursor: pointer; font-size: 14px; }
+    button:hover { background: #2c57d1; }
+    input { padding: 7px 10px; border: 1px solid #cfd4e0; border-radius: 6px; width: 120px; }
+    pre { background: #1e2430; color: #d5f5e3; padding: 14px; border-radius: 10px;
+          max-height: 320px; overflow: auto; font-size: 13px; line-height: 1.6; }
+    .ok { color: #137333; font-weight: bold; }
+    .err { color: #c5221f; font-weight: bold; }
+    #status { margin: 10px 0; min-height: 22px; }
+  </style>
+</head>
+<body>
+  <h3>fetch 调用后端接口</h3>
+  <p class="sub">目标后端：<code id="apiBase">http://127.0.0.1:8765</code></p>
+
+  <div>
+    <button onclick="callApi('/api/health')">健康检查 /api/health</button>
+    <button onclick="callApi('/api/profile/20240101')">学生画像 /api/profile/20240101</button>
+    <button onclick="callApi('/api/recommendations/professional?student_id=20240101&filter=all')">专业路径推荐</button>
+    <button onclick="callApi('/api/recommendations/jobs?student_id=20240101')">就业路径</button>
+    <button onclick="callApi('/api/recommendations/exam?student_id=20240101')">考研路径</button>
+    <button onclick="callApi('/api/demo-accounts')">演示账号列表</button>
+  </div>
+
+  <div style="margin-top:10px">
+    <input id="customPath" value="/api/profile/20240101" style="width:340px" />
+    <button onclick="callApi(document.getElementById('customPath').value)">请求自定义 URL</button>
+  </div>
+
+  <div id="status"></div>
+  <pre id="out">点击上面的按钮，这里会显示后端返回的原始数据（JSON）</pre>
+
+  <script>
+    const BASE = "http://127.0.0.1:8765";
+    document.getElementById("apiBase").textContent = BASE;
+
+    // 这个函数几乎就是 frontend/app.js:18-26 的原样复刻
+    function api(path, options = {}) {
+      return fetch(`${BASE}${path}`, {
+        headers: { "Content-Type": "application/json" },
+        ...options,
+      }).then(async (res) => {
+        // res.ok 表示状态码在 200-299 之间
+        if (!res.ok) {
+          // 后端抛 HTTPException 时会返回 {"detail": "..."}，见 app.py:124
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.detail || ("请求失败，状态码 " + res.status));
+        }
+        return res.json();
+      });
+    }
+
+    async function callApi(path) {
+      const status = document.getElementById("status");
+      const out = document.getElementById("out");
+      status.textContent = "请求中：GET " + BASE + path;
+      status.className = "";
+      out.textContent = "加载中...";
+
+      const t0 = performance.now();
+      try {
+        const data = await api(path);           // await 等待 Promise 拿到 JSON
+        const ms = Math.round(performance.now() - t0);
+        status.textContent = `请求成功，耗时 ${ms}ms`;
+        status.className = "ok";
+        out.textContent = JSON.stringify(data, null, 2).slice(0, 4000);
+      } catch (e) {
+        status.textContent = "请求失败：" + e.message;
+        status.className = "err";
+        out.textContent = "如果所有请求都失败，先确认主项目服务是否已启动：\n"
+          + "  python -m uvicorn backend.app:app --host 127.0.0.1 --port 8765";
+      }
+    }
+  </script>
+</body>
+</html>

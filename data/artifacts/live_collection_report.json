@@ -1,0 +1,63 @@
+{
+  "started_at": "2026-09-04T10:35:03",
+  "finished_at": "2026-09-04T10:36:40",
+  "results": [
+    {
+      "domain": "video",
+      "source": "B站",
+      "inserted": 50,
+      "skipped": 45,
+      "target": 50,
+      "ok": true,
+      "message": "ok",
+      "new_count": 2,
+      "updated_count": 48
+    },
+    {
+      "domain": "video",
+      "source": "MOOC",
+      "inserted": 0,
+      "skipped": 0,
+      "target": 50,
+      "ok": false,
+      "message": "未达到目标数量：公开搜索未返回可回读课程页，或课程页无法验证近 6 年公开日期（需要平台授权接口/导出文件）",
+      "new_count": 0,
+      "updated_count": 0
+    },
+    {
+      "domain": "video",
+      "source": "极客时间",
+      "inserted": 0,
+      "skipped": 0,
+      "target": 50,
+      "ok": false,
+      "message": "未达到目标数量：公开搜索未返回可回读课程页，或课程页无法验证近 6 年公开日期（需要平台授权接口/导出文件）",
+      "new_count": 0,
+      "updated_count": 0
+    },
+    {
+      "domain": "job",
+      "source": "拉勾网+BOSS直聘",
+      "inserted": 0,
+      "skipped": 0,
+      "target": 200,
+      "ok": false,
+      "message": "拉勾网:Java 后端:公开页面返回验证码/风控页，未获得业务数据; BOSS直聘:Python 开发:公开页面返回验证码/风控页，未获得业务数据",
+      "new_count": 0,
+      "updated_count": 0
+    },
+    {
+      "domain": "exam",
+      "source": "湖南研招单位-研招网官方硕士目录",
+      "inserted": 31,
+      "skipped": 0,
+      "target": 31,
+      "ok": true,
+      "message": "研招网2027官方硕士目录：湖南实际开设 31 个可报考学校-专业组合，理论全矩阵为 145；成功保存 31 条，未解析 0 个",
+      "new_count": 0,
+      "updated_count": 31
+    }
+  ],
+  "success": false,
+  "success_definition": "仅当每个数据源本次新增或更新达到目标数量时才算成功"
+}

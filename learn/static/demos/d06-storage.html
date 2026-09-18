@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<!--
+  知识点：sessionStorage 保持登录态 + SPA 标签页切换
+  归属：前端
+  源码出处：frontend/app.js:3     studentId: sessionStorage.getItem("studentId") || "20240101"
+           frontend/app.js:100   sessionStorage.setItem("studentId", state.studentId)
+           frontend/app.js:561   if (!sessionStorage.getItem("studentId")) renderLogin() else loadApp()
+           frontend/app.js:124-157 renderShell() 标签页切换（改 state 后整体重绘）
+
+  sessionStorage vs localStorage：
+    sessionStorage —— 关掉标签页就清空，适合放登录态这种不想长期留的东西
+    localStorage   —— 一直留着，除非手动清
+
+  项目用它实现「登录一次，之后直接进主页」。
+-->
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>sessionStorage 与 SPA 切换</title>
+  <style>
+    body { font-family: "Microsoft YaHei", sans-serif; padding: 24px; background: #f6f7fb; color: #1f2430; }
+    .tabs { display: flex; gap: 8px; margin: 14px 0 18px; }
+    .tab { padding: 9px 18px; border: none; border-radius: 10px; background: #e4e7ee;
+           color: #4a5160; cursor: pointer; font-size: 14px; }
+    .tab.active { background: #3b6cf6; color: #fff; }
+    #content { background: #fff; border-radius: 12px; padding: 18px; min-height: 120px;
+               box-shadow: 0 2px 12px rgba(0,0,0,.06); }
+    .info { margin-top: 16px; padding: 12px 14px; background: #fff8e1; border-radius: 8px; font-size: 13px; }
+    button.act { padding: 8px 14px; border: none; border-radius: 8px; background: #137333;
+                 color: #fff; cursor: pointer; margin-right: 8px; }
+    button.red { background: #c5221f; }
+  </style>
+</head>
+<body>
+  <h3>sessionStorage + 标签页切换</h3>
+
+  <div class="tabs" id="tabs">
+    <button class="tab active" data-tab="professional">专业路径推荐</button>
+    <button class="tab" data-tab="job">就业路径推荐</button>
+    <button class="tab" data-tab="exam">考研路径推荐</button>
+  </div>
+
+  <div id="content"></div>
+
+  <div style="margin-top:18px">
+    <button class="act" onclick="fakeLogin()">模拟登录（写入 sessionStorage）</button>
+    <button class="act red" onclick="fakeLogout()">退出登录（清空）</button>
+  </div>
+
+  <div class="info" id="info"></div>
+
+  <script>
+    // ---- 和项目一致的「全局状态」对象 ----
+    // 源码出处：frontend/app.js:2-14
+    let state = {
+      studentId: sessionStorage.getItem("studentId") || "",   // 没登录就是空
+      tab: "professional",
+    };
+
+    const $ = (s) => document.querySelector(s);
+
+    // ---- 标签页切换：改 state → 整页重绘 ----
+    // 这就是 SPA 的本质：不刷新浏览器，只重新生成 innerHTML
+    function render() {
+      const tabNames = {
+        professional: "专业路径推荐",
+        job: "就业路径推荐",
+        exam: "考研路径推荐",
+      };
+
+      $("#tabs").querySelectorAll(".tab").forEach((btn) => {
+        btn.classList.toggle("active", btn.dataset.tab === state.tab);
+      });
+
+      $("#content").innerHTML = `
+        <h4>${tabNames[state.tab]}</h4>
+        <p>当前 state.tab = <strong>${state.tab}</strong></p>
+        <p>当前登录状态：${state.studentId ? "已登录，" + state.studentId : "未登录"}</p>
+        <p style="color:#7a7f8c;font-size:13px">
+          源码里切换标签就是两步：state.tab = 新值 → renderShell() 重绘整个页面
+        </p>
+      `;
+      refreshInfo();
+    }
+
+    // 事件委托：三个标签只绑一次
+    $("#tabs").addEventListener("click", (e) => {
+      const btn = e.target.closest(".tab");
+      if (!btn) return;
+      state.tab = btn.dataset.tab;
+      render();
+    });
+
+    function fakeLogin() {
+      state.studentId = "20240101";
+      sessionStorage.setItem("studentId", state.studentId);
+      render();
+    }
+
+    function fakeLogout() {
+      state.studentId = "";
+      sessionStorage.removeItem("studentId");
+      render();
+    }
+
+    function refreshInfo() {
+      $("#info").textContent =
+        "sessionStorage.studentId = " + JSON.stringify(sessionStorage.getItem("studentId"))
+        + "（刷新本页也会保留，关掉标签页才会清空）";
+    }
+
+    render();
+  </script>
+</body>
+</html>

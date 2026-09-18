@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<!--
+  知识点：埋点上报 —— 用户行为如何回到数据库
+  归属：前端 + 后端 + 数据库
+  源码出处：frontend/app.js:262-269  bindVideoCards() 点击卡片时上报 click 事件
+           backend/app.py:167-175   @app.post("/api/track") 写 behavior_log 表
+           backend/train_model.py:127-138  用 behavior_log 算「平台偏好」特征
+
+  这一页把整条闭环跑完了：
+    点按钮 → POST /api/track → 后端 INSERT INTO behavior_log → 再查库看有没有写进去
+
+  埋点数据是推荐系统的燃料：模型里的「平台偏好」特征就是靠这些记录算出来的。
+-->
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>埋点上报闭环</title>
+  <style>
+    body { font-family: "Microsoft YaHei", sans-serif; padding: 24px; background: #f6f7fb; color: #1f2430; }
+    button { padding: 8px 14px; margin: 0 8px 10px 0; border: none; border-radius: 8px;
+             background: #3b6cf6; color: #fff; cursor: pointer; }
+    button:hover { background: #2c57d1; }
+    .event-btn { background: #fff; color: #3b6cf6; border: 2px solid #cdd6ff; }
+    .event-btn:hover { border-color: #3b6cf6; }
+    pre { background: #1e2430; color: #d5f5e3; padding: 14px; border-radius: 10px;
+          max-height: 300px; overflow: auto; font-size: 12.5px; line-height: 1.6; }
+    .status { margin: 10px 0; font-weight: bold; min-height: 22px; }
+    .ok { color: #137333; } .err { color: #c5221f; }
+    table { border-collapse: collapse; width: 100%; margin-top: 12px; font-size: 13px; background: #fff; }
+    th, td { border: 1px solid #e4e7ee; padding: 8px 10px; text-align: left; }
+    th { background: #f0f2f7; }
+  </style>
+</head>
+<body>
+  <h3>埋点闭环：点击 → 后端入库 → 回查验证</h3>
+
+  <p style="font-size:14px;color:#5f6672">模拟点击视频卡片，上报一条行为埋点：</p>
+  <div>
+    <button class="event-btn" onclick="track('click', 'V002')">点击 V002</button>
+    <button class="event-btn" onclick="track('play', 'V002')">播放 V002</button>
+    <button class="event-btn" onclick="track('like', 'V005')">点赞 V005</button>
+    <button class="event-btn" onclick="track('favorite', 'V003')">收藏 V003</button>
+    <button class="event-btn" onclick="track('complete', 'V001')">看完 V001</button>
+  </div>
+
+  <button onclick="loadLogs()" style="background:#137333">查看刚写入的埋点记录</button>
+  <button onclick="callModelFeature()">看这些埋点怎么变成模型特征</button>
+
+  <div class="status" id="status"></div>
+  <div id="tableBox"></div>
+  <pre id="raw">接口返回 / 特征计算结果会显示在这里</pre>
+
+  <script>
+    const BASE = "http://127.0.0.1:8765";
+    const SID = "20240101";
+
+    async function track(eventType, videoId) {
+      const status = document.getElementById("status");
+      status.className = "status";
+      status.textContent = "上报中...";
+
+      // 和 frontend/app.js:265 完全一样的请求
+      try {
+        await fetch(`${BASE}/api/track`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            student_id: SID,
+            video_id: videoId,
+            event_type: eventType,
+            duration: 0,
+          }),
+        });
+        status.className = "status ok";
+        status.textContent = `已上报：${eventType} ${videoId}（后端写入 behavior_log 表）`;
+        await loadLogs();
+      } catch (e) {
+        status.className = "status err";
+        status.textContent = "上报失败：" + e.message;
+      }
+    }
+
+    // 通过 learn 服务提供的只读查询接口，把刚写进去的埋点读出来
+    async function loadLogs() {
+      try {
+        const res = await fetch("/api/learn/behavior-log?student_id=" + SID + "&limit=8");
+        const rows = await res.json();
+        if (!Array.isArray(rows) || !rows.length) {
+          document.getElementById("tableBox").innerHTML = "<p>暂无数据</p>";
+          return;
+        }
+        const cols = Object.keys(rows[0]);
+        document.getElementById("tableBox").innerHTML =
+          "<table><thead><tr>" + cols.map((c) => `<th>${c}</th>`).join("") + "</tr></thead><tbody>"
+          + rows.map((r) => "<tr>" + cols.map((c) => `<td>${r[c] === null ? "NULL" : r[c]}</td>`).join("") + "</tr>").join("")
+          + "</tbody></table>";
+      } catch (e) {
+        document.getElementById("tableBox").innerHTML =
+          "<p style='color:#c5221f'>读取失败：" + e.message + "</p>";
+      }
+    }
+
+    // 演示：埋点数据如何变成模型里的 platform_preference 特征
+    async function callModelFeature() {
+      const raw = document.getElementById("raw");
+      raw.textContent = "计算中...";
+      try {
+        // 直接用 SQL 等价查询（后端 Sanbox 接口）算出各平台行为次数
+        const res = await fetch("/api/learn/sql", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sql: "SELECT v.platform, COUNT(*) AS c\n"
+               + "FROM behavior_log b JOIN video v ON b.video_id=v.video_id\n"
+               + "WHERE b.student_id='20240101'\n"
+               + "  AND b.event_type IN ('play','complete','like','favorite')\n"
+               + "GROUP BY v.platform ORDER BY c DESC",
+          }),
+        });
+        const json = await res.json();
+        if (!json.ok) throw new Error(json.message);
+        const rows = json.rows;
+        const total = rows.reduce((s, r) => s + r.c, 0) || 1;
+        const lines = ["这就是 train_model.py:127-138 算 platform_preference 的原始数据来源：", ""];
+        rows.forEach((r) => {
+          lines.push(`  ${r.platform}：${r.c} 次 → 偏好权重 ${(r.c / total).toFixed(4)}`);
+        });
+        lines.push("");
+        lines.push("模型会把「这个学生常逛哪个平台」作为第 6 维特征喂给逻辑回归，");
+        lines.push("于是 B站重度用户就更容易被推 B站的课。");
+        raw.textContent = lines.join("\n");
+      } catch (e) {
+        raw.textContent = "失败：" + e.message;
+      }
+    }
+
+    loadLogs();
+  </script>
+</body>
+</html>

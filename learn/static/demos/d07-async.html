@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<!--
+  知识点：async / await 异步加载，以及一次拉多个接口
+  归属：前端
+  源码出处：frontend/app.js:108-122  async function loadApp() 里连续 await 六个接口
+           frontend/app.js:18-26   function api() 返回 Promise
+
+  为什么需要 await？
+    fetch 是异步的：发出请求后代码不会停在那里等，而是继续往下跑。
+    如果不用 await 等待，就拿不到数据。await 的作用就是「停在这里，直到结果回来」。
+
+  本项目 loadApp() 是串行 await（一个接一个），这里额外演示更快的 Promise.all 并发写法。
+-->
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>async / await 异步与并发</title>
+  <style>
+    body { font-family: "Microsoft YaHei", sans-serif; padding: 24px; background: #f6f7fb; color: #1f2430; }
+    button { padding: 8px 14px; margin: 0 8px 12px 0; border: none; border-radius: 8px;
+             background: #3b6cf6; color: #fff; cursor: pointer; }
+    button:hover { background: #2c57d1; }
+    #log { background: #1e2430; color: #d5f5e3; padding: 14px; border-radius: 10px;
+           font-size: 13px; min-height: 180px; white-space: pre-wrap; line-height: 1.7; }
+    .bar { height: 8px; background: #e4e7ee; border-radius: 4px; margin: 6px 0 12px; overflow: hidden; }
+    .bar span { display: block; height: 100%; width: 0; background: #3b6cf6; transition: width .3s; }
+  </style>
+</head>
+<body>
+  <h3>async / await：串行 vs Promise.all 并发</h3>
+
+  <div>
+    <button onclick="runSerial()">串行加载（一个接一个）</button>
+    <button onclick="runParallel()">并发加载（Promise.all）</button>
+    <button onclick="clearLog()">清空</button>
+  </div>
+
+  <div class="bar"><span id="progress"></span></div>
+  <div id="log">点击按钮开始。对比两种写法的总耗时。</div>
+
+  <script>
+    const BASE = "http://127.0.0.1:8765";
+    const sid = "20240101";
+
+    // 要加载的接口清单，和 frontend/app.js:114-120 基本一致
+    const tasks = [
+      ["学生画像", `/api/profile/${sid}`],
+      ["专业路径推荐", `/api/recommendations/professional?student_id=${sid}&filter=all`],
+      ["就业路径", `/api/recommendations/jobs?student_id=${sid}`],
+      ["考研路径", `/api/recommendations/exam?student_id=${sid}`],
+    ];
+
+    const logBox = document.getElementById("log");
+    const progress = document.getElementById("progress");
+
+    function write(text) {
+      logBox.textContent += text + "\n";
+      logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    // 和项目里 api() 一致的 fetch 封装
+    async function api(path) {
+      const res = await fetch(`${BASE}${path}`, { headers: { "Content-Type": "application/json" } });
+      if (!res.ok) throw new Error(path + " 请求失败");
+      return res.json();
+    }
+
+    // ---- 串行：await 在循环里，必须等上一个完成才开始下一个 ----
+    // 这就是 frontend/app.js:114-120 的写法
+    async function runSerial() {
+      clearLog();
+      const t0 = performance.now();
+      write("【串行开始】");
+      for (const [name, path] of tasks) {
+        const t = performance.now();
+        const data = await api(path);            // 卡在这里等结果
+        const size = JSON.stringify(data).length;
+        write(`  ${name}：耗时 ${Math.round(performance.now() - t)}ms，数据 ${size} 字节`);
+        progress.style.width = ((tasks.indexOf(tasks.find((x) => x[0] === name)) + 1) / tasks.length * 100) + "%";
+      }
+      write(`【串行结束】总耗时 ${Math.round(performance.now() - t0)}ms`);
+    }
+
+    // ---- 并发：Promise.all 同时发出所有请求，总耗时取决于最慢的那个 ----
+    async function runParallel() {
+      clearLog();
+      const t0 = performance.now();
+      write("【并发开始】四个请求同时发出");
+      try {
+        const results = await Promise.all(tasks.map(([name, path]) => api(path)));
+        results.forEach((data, i) => {
+          write(`  ${tasks[i][0]}：数据 ${JSON.stringify(data).length} 字节`);
+        });
+        progress.style.width = "100%";
+        write(`【并发结束】总耗时 ${Math.round(performance.now() - t0)}ms`);
+      } catch (e) {
+        write("失败：" + e.message + "\n请确认主项目服务已启动（端口 8765）");
+      }
+    }
+
+    function clearLog() {
+      logBox.textContent = "";
+      progress.style.width = "0%";
+    }
+  </script>
+</body>
+</html>

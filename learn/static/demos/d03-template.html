@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<!--
+  知识点：模板字符串 + map/join 把数据渲染成卡片列表
+  归属：前端
+  源码出处：frontend/app.js:251-260  function videoCard(item)
+           frontend/app.js:229    ${state.professional.map(videoCard).join("")}
+           frontend/app.js:180-194 ${courses.map((course) => `...`).join("")}
+
+  前端拿到的是一堆 JSON 对象，页面要的是 HTML。
+  中间的转换器就是「模板字符串 + map + join」这三件套：
+    · 反引号 `` 包一段带 ${} 占位的 HTML
+    · arr.map(fn) 把数组里每项变成一个 HTML 字符串
+    · .join("") 把字符串数组拼成一整段（不加 join 的话中间会冒出逗号）
+-->
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>模板字符串渲染卡片</title>
+  <style>
+    body { font-family: "Microsoft YaHei", sans-serif; padding: 24px; background: #f6f7fb; color: #1f2430; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-top: 14px; }
+    .video-card { background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,.07); }
+    .cover { height: 92px; background: var(--cover, #3b6cf6); }
+    .video-card h3 { font-size: 15px; margin: 12px 14px 8px; }
+    .meta { padding: 0 14px 12px; font-size: 13px; color: #5f6672; display: flex; gap: 10px; }
+    .platform { background: #eef2ff; color: #3b6cf6; padding: 2px 8px; border-radius: 10px; }
+    .paid { background: #ffeef0; color: #c5221f; }
+    button { padding: 8px 14px; border: none; border-radius: 8px; background: #3b6cf6; color: #fff; cursor: pointer; }
+    .score { padding: 0 14px 14px; font-size: 12px; color: #7a7f8c; }
+  </style>
+</head>
+<body>
+  <h3>模板字符串渲染卡片</h3>
+  <button onclick="render(localData)">渲染本地数据</button>
+  <button onclick="renderReal()">拉后端真实推荐数据渲染</button>
+  <div class="grid" id="grid"></div>
+
+  <script>
+    // 假数据：结构和后端 /api/recommendations/professional 返回的每一项一致
+    const localData = [
+      { video_id: "V002", title: "数据结构与算法・图解与实战", platform: "B站",
+        is_paid: false, plays: "48.3万播放", cover_color: "#884df0", score: 0.86,
+        reason: "正在学习《数据结构》，召回同主题视频" },
+      { video_id: "V003", title: "机器学习入门・李宏毅 2024", platform: "极客时间",
+        is_paid: true, plays: "5.2万播放", cover_color: "#119caf", score: 0.74,
+        reason: "基于你的学习记录做 ItemCF 相似召回" },
+      { video_id: "V005", title: "计算机网络・谢希仁第七版精讲", platform: "B站",
+        is_paid: false, plays: "21.7万播放", cover_color: "#0fb889", score: 0.69,
+        reason: "下学期将学《计算机网络》，适合假期预习" },
+    ];
+
+    // 下面这个函数是 frontend/app.js:251 videoCard 的简化版
+    function videoCard(item) {
+      return `
+        <article class="video-card">
+          <!-- --cover 是 CSS 变量，用行内 style 把每门课的颜色传进样式表里 -->
+          <div class="cover" style="--cover:${item.cover_color}"></div>
+          <h3>${item.title}</h3>
+          <div class="meta">
+            <span class="platform ${item.is_paid ? "paid" : ""}">${item.platform}</span>
+            <span>${item.plays}</span>
+            <span>${item.is_paid ? "付费" : "免费"}</span>
+          </div>
+          <div class="score">${item.reason}<br />推荐分 ${(item.score * 100).toFixed(1)}%</div>
+        </article>
+      `;
+    }
+
+    function render(list) {
+      // 关键三连：map 得到字符串数组，join("") 拼成整段 HTML，再赋给 innerHTML
+      document.getElementById("grid").innerHTML = list.map(videoCard).join("");
+    }
+
+    async function renderReal() {
+      const grid = document.getElementById("grid");
+      grid.innerHTML = "<div>正在请求后端...</div>";
+      try {
+        const res = await fetch("http://127.0.0.1:8765/api/recommendations/professional?student_id=20240101&filter=all");
+        if (!res.ok) throw new Error("后端未启动或请求失败");
+        const list = await res.json();
+        render(list);
+      } catch (e) {
+        grid.innerHTML = "<div style='color:#c5221f'>拉取真实数据失败：" + e.message + "</div>";
+      }
+    }
+
+    render(localData);
+  </script>
+</body>
+</html>
