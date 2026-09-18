@@ -21,7 +21,7 @@ After=network.target
 Type=simple
 User=root
 WorkingDirectory=/home/project/xuetu/xuetu-lite-rebuild
-ExecStart=/home/project/xuetu/xuetu-lite-rebuild/.venv/bin/python -m uvicorn backend.app:app --host 0.0.0.0 --port 8765 --workers 1
+ExecStart=/home/project/xuetu/xuetu-lite-rebuild/venv/bin/python -m uvicorn backend.app:app --host 0.0.0.0 --port 8765 --workers 1
 Restart=always
 RestartSec=5
 
