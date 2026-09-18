@@ -1,0 +1,30 @@
+# 岳阳学院智慧校园 —— 后端服务（uvicorn :8000）
+#
+# 使用前先按你的服务器改这两处：
+#   1) WorkingDirectory  → 代码实际路径
+#   2) ExecStart         → python3 和 uvicorn 的绝对路径，用 `which python3` 查
+#
+# 安装：
+#   sudo cp scripts/systemd/xuetu-backend.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now xuetu-backend
+#
+# 常用：
+#   systemctl status  xuetu-backend
+#   systemctl restart xuetu-backend
+#   journalctl -u xuetu-backend -f
+[Unit]
+Description=Xuetu Lite 学途推荐服务
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/home/project/xuetu/xuetu-lite-rebuild
+ExecStart=/home/project/xuetu/xuetu-lite-rebuild/.venv/bin/python -m uvicorn backend.app:app --host 0.0.0.0 --port 8765 --workers 1
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF

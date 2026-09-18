@@ -122,6 +122,202 @@ python learn/start.py
 
 访问 `http://127.0.0.1:8766`。它需要主服务（8765）也跑着，因为教学页里的「后端接口实验室」会直接请求主项目接口。
 
+## 部署到阿里云服务器（后台运行）
+
+本地和服务器只差一处：**监听地址从 `127.0.0.1` 换成 `0.0.0.0`**。
+
+`127.0.0.1` 只监听本机回环，外部连不上；`0.0.0.0` 监听全部网卡，才能被公网访问。
+
+前端不用改任何代码——`app.js:1` 是 `const API = ""`，所有请求走相对路径，换成公网 IP 访问天然就通。
+
+### 1. 装环境
+
+项目要求 **Python 3.8+**（代码用了 `from __future__ import annotations` 来兼容 3.8 的 `X | None` 联合类型写法）。
+
+```bash
+# Alibaba Cloud Linux / CentOS
+sudo yum install -y python3 python3-pip
+python3 --version
+
+# Ubuntu / Debian
+sudo apt update && sudo apt install -y python3 python3-venv python3-pip
+python3 --version
+```
+
+> 阿里云 CentOS 7、Alibaba Cloud Linux 2/3 自带的 `python3` 是 **3.6，版本不够**。
+> 装高版本：`sudo yum install -y python39 python39-pip`，之后把命令里的 `python3` 换成 `python3.9`。
+
+### 2. 上传代码并建虚拟环境
+
+```bash
+sudo mkdir -p /opt/xuetu && sudo chown -R $USER /opt/xuetu
+# 用 scp / 宝塔面板 / git 把项目传到 /opt/xuetu/xuetu-lite-rebuild
+
+cd /opt/xuetu/xuetu-lite-rebuild
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+依赖只装 4 个包（`fastapi`、`uvicorn`、`pydantic`、`requests`），没有数据库驱动——SQLite 是 Python 自带的。
+
+### 3. 阿里云控制台放行端口
+
+这一步只能在控制台点，没有命令：
+
+**ECS 控制台 → 实例 → 安全组 → 配置规则 → 入方向 → 手动添加**
+
+| 字段 | 填什么 |
+| --- | --- |
+| 协议类型 | 自定义 TCP |
+| 端口范围 | `8765/8765`（教学页再加一条 `8766/8766`） |
+| 授权对象 | `0.0.0.0/0` 表示对所有人开放；只给自己用就填你的本机公网 IP，更安全 |
+
+如果服务器开了系统防火墙，还要单独放行：
+
+```bash
+# CentOS / Alibaba Cloud Linux
+sudo firewall-cmd --add-port=8765/tcp --permanent && sudo firewall-cmd --reload
+
+# Ubuntu
+sudo ufw allow 8765/tcp
+```
+
+### 4. 先前台试跑一次
+
+```bash
+cd /opt/xuetu/xuetu-lite-rebuild
+source .venv/bin/activate
+python -m uvicorn backend.app:app --host 0.0.0.0 --port 8765 --workers 1
+```
+
+看到 `Application startup complete` 就说明正常，浏览器访问 `http://服务器公网IP:8765` 应该能打开登录页。按 `Ctrl+C` 停掉，再往下做后台运行。
+
+> **`--workers 1` 不要省。** 项目用 SQLite 单文件数据库，每个请求都新建连接（`app.py:91-94`），
+> 多 worker 会并发争抢写锁；而且 `app.py:47` 的 `bootstrap()` 在**进程启动时同步执行**
+> （可能要建库、训练模型），多进程同时启动会重复跑一遍。演示场景单 worker 完全够。
+
+### 5. 后台运行（三选一）
+
+#### 方式 A：nohup —— 最快，适合临时演示
+
+```bash
+cd /opt/xuetu/xuetu-lite-rebuild
+mkdir -p logs
+
+nohup .venv/bin/python -m uvicorn backend.app:app \
+  --host 0.0.0.0 --port 8765 --workers 1 \
+  > logs/app.log 2>&1 &
+
+echo $! > logs/app.pid     # 记下 PID，方便后面停止
+```
+
+停止和看日志：
+
+```bash
+kill $(cat logs/app.pid)   # 停止服务
+tail -f logs/app.log       # 实时看日志
+```
+
+缺点是**服务器重启后不会自动拉起**，适合演示当天临时用。
+
+#### 方式 B：systemd —— 推荐，开机自启 + 崩溃自动重启
+
+写服务文件：
+
+```bash
+sudo tee /etc/systemd/system/xuetu.service > /dev/null <<'EOF'
+[Unit]
+Description=Xuetu Lite 学途推荐服务
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/xuetu/xuetu-lite-rebuild
+ExecStart=/opt/xuetu/xuetu-lite-rebuild/.venv/bin/python -m uvicorn backend.app:app --host 0.0.0.0 --port 8765 --workers 1
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+EOF
+```
+
+启用并启动：
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable xuetu    # 设置开机自启
+sudo systemctl start xuetu     # 立即启动
+sudo systemctl status xuetu    # 看运行状态
+```
+
+日常运维命令：
+
+```bash
+sudo systemctl restart xuetu               # 重启（改完代码用这个）
+sudo systemctl stop xuetu                  # 停止
+journalctl -u xuetu -f                     # 实时日志
+journalctl -u xuetu --since "10 min ago"   # 看最近 10 分钟日志
+```
+
+两个关键点：
+
+- `WorkingDirectory` 必须写对。`python -m uvicorn backend.app:app` 依赖 cwd 在项目根目录才能找到 `backend` 包，否则报 `ModuleNotFoundError: No module named 'backend'`。
+- `ExecStart` 直接写虚拟环境里的 python 绝对路径，**不用**先 `source activate`。
+- `User=root` 是为了省事。想更规范就新建专用用户，并把 `/opt/xuetu/xuetu-lite-rebuild/data` 的属主改成它，否则 SQLite 写不进去。
+
+#### 方式 C：screen / tmux —— 需要进去交互调试时用
+
+```bash
+screen -S xuetu
+cd /opt/xuetu/xuetu-lite-rebuild
+.venv/bin/python -m uvicorn backend.app:app --host 0.0.0.0 --port 8765 --workers 1
+# 按 Ctrl+A 然后按 D 脱离；下次 screen -r xuetu 回到这个会话
+```
+
+### 6. 教学页也一起部署（可选）
+
+`learn/start.py:46` 把 host 写死成 `127.0.0.1` 了，服务器上要对外访问就绕开它，直接用 uvicorn 命令：
+
+```bash
+nohup .venv/bin/python -m uvicorn server.app:app --app-dir learn \
+  --host 0.0.0.0 --port 8766 --workers 1 \
+  > logs/learn.log 2>&1 &
+```
+
+同样记得在安全组放行 8766，并且主服务 8765 要先跑起来。
+
+教学页内部靠 `http://127.0.0.1:8765` 转发主项目接口（`learn/server/app.py:40`），同机 localhost 通信，**不用改**。
+
+> 一个诚实的提醒：`learn/static/demos/` 下那几个前端示例（`d02-fetch`、`d03-template`、`d05-form`、`d07-async`、`d10-track`）把后端地址写死成了 `http://127.0.0.1:8765`。这些代码是在**浏览器里**跑的，服务器部署后从自己电脑打开教学页，它们会去连你自己电脑的 8765 而不是服务器的，因此会连不上。这套 demo 本来就是为本地教学设计的，服务器上当作讲解材料看即可。
+
+### 7. 部署后自检
+
+```bash
+curl http://127.0.0.1:8765/health
+# 期望输出：{"ok":true,"db":true,"model":true}
+
+curl -s "http://127.0.0.1:8765/api/demo-accounts" | head -c 200
+```
+
+`/health` 三个字段都为 `true` 才算正常：`ok` 服务活着、`db` 数据库文件在、`model` 模型文件在。
+
+### 8. 常见故障对照
+
+| 现象 | 原因 |
+| --- | --- |
+| 服务器上 `curl` 通，外部浏览器打不开 | 阿里云安全组没放行 8765 |
+| 监听地址显示 `127.0.0.1:8765`，外部连不上 | 启动时没加 `--host 0.0.0.0` |
+| `ModuleNotFoundError: No module named 'backend'` | 启动时 cwd 不在项目根目录，systemd 要配 `WorkingDirectory` |
+| 启动报 `Permission denied`，写不了数据库 | `data/` 目录属主和运行服务的用户不一致 |
+| 首次启动卡十几秒才响应 | `bootstrap()` 在建库 + 训练模型（`app.py:30-47`），属正常，之后就快了 |
+| nohup 的 `logs/app.log` 越涨越大 | 用系统 `logrotate` 切割，或定期清空：`> logs/app.log` |
+
 ## 关键 API
 
 - `POST /api/login`：账号密码登录。

@@ -1,0 +1,31 @@
+# 岳阳学院智慧校园 —— 前端开发服务器（vite :4175）
+#
+# ⚠️ 仅用于「在服务器上边改边调」。正式部署请先 npm run build，
+#    然后只跑后端即可（backend/main.py 检测到 dist/ 会自动托管前端 SPA）。
+#
+# 使用前先按你的服务器改这两处：
+#   1) WorkingDirectory  → 代码实际路径
+#   2) ExecStart         → npx 的绝对路径，用 `which npx` 查
+#
+# 安装：
+#   sudo cp scripts/systemd/xuetu-frontend.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now xuetu-frontend
+
+[Unit]
+Description=xuetu Frontend (vite dev)
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/home/project/xuetu
+Environment=NODE_ENV=development
+ExecStart=/usr/bin/npx vite --host 0.0.0.0 --port 4175
+Restart=always
+RestartSec=3
+KillSignal=SIGTERM
+TimeoutStopSec=15
+
+[Install]
+WantedBy=multi-user.target
