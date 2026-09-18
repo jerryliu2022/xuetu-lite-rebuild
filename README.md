@@ -34,7 +34,9 @@ python -m uvicorn backend.app:app --host 127.0.0.1 --port 8765
 
 > 只想把页面跑起来看效果的话，上面三步里**只需要最后一条**：`backend/app.py` 启动时会自己调 `bootstrap()`，数据库和模型文件不存在时会自动建库、训练（`app.py:30-47`）。
 >
-> 注意 `python -m backend.train_model` 是手动重训入口，当前 `train_model.py:314` 的 `main()` 调用了不存在的 `train_rank_model()`（实际函数名是 `train_fold_model`），手动执行会 NameError；走服务启动不会触发，因为模型文件已存在。详见 `learn/docs/推荐系统算法与特征工程详解.md` 的已知问题章节。
+> 手动重训入口 `python -m backend.train_model` 可正常执行，会打印样本数、正样本率和 AUC。注意它**会覆盖** `data/artifacts/ranker_model.json`，重训前建议先备份该文件。
+>
+> （原先这条命令会抛 `NameError`：`train_model.py:314` 的 `main()` 调用了不存在的 `train_rank_model()`，而文件里实际定义的函数名是 `train_fold_model`。已修复，详见 `learn/docs/推荐系统算法与特征工程详解.md` 9.7 节。）
 
 ## 前端启动
 

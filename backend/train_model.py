@@ -311,7 +311,11 @@ def train_fold_model(base_bundle=None, skip_pairs=None) -> Dict[str, Any]:
 
 
 def main() -> None:
-    bundle = train_rank_model()
+    bundle = train_fold_model()
+    # _context 是「全量视频/课程快照」的训练中间态，只给留一法评估在内存里复用同一组
+    # 向量用（evaluate_model.py:122-131 会自己重建一份），不属于模型产物。
+    # 不剔除的话，模型文件会从 960 KB 涨到 1252 KB（多出 281 KB，约 +30%）。
+    bundle.pop("_context", None)
     MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
     MODEL_PATH.write_text(
         json.dumps(bundle, ensure_ascii=False, indent=2),

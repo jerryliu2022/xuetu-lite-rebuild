@@ -195,12 +195,12 @@ python learn/_verify.py
 
 ---
 
-## 七、顺带发现的一处源码缺陷
+## 七、顺带发现并已修复的一处源码缺陷
 
 分析源码时发现 `backend/train_model.py` 有一处真实问题：
 
 ```python
-# train_model.py:313-314
+# 修复前 —— train_model.py:313-314
 def main() -> None:
     bundle = train_rank_model()   # ← 这个函数不存在
 ```
@@ -210,6 +210,22 @@ def main() -> None:
 
 平时没暴露是因为：模型文件 `data/artifacts/ranker_model.json` 已存在且未过期，`bootstrap()` 不会走到重训分支（见 `app.py:43-44`）。
 
-最小修复：把调用改成 `train_fold_model()`，或加一行别名 `train_rank_model = train_fold_model`。
+**已修复**（`train_model.py:313-325`）：
 
-（教学页面上第 2 章最后一条知识点专门列了这条，作为「如何定位隐藏 bug」的练手素材。未修改主项目源码。）
+```python
+def main() -> None:
+    bundle = train_fold_model()          # ← 改成真实存在的函数名
+    bundle.pop("_context", None)         # ← 顺手剔除训练中间态（见下）
+    ...
+```
+
+除了改函数名，还加了一行 `pop("_context")`。原因：`train_fold_model()` 的返回值里带一个 `_context`
+（全量 116 条视频 + 17 门课程的快照），它只是给留一法评估在内存里复用向量用的中间态
+（`evaluate_model.py:122-131` 会自己重建一份），不属于模型产物。
+不剔除的话模型文件会从 960 KB 涨到 1252 KB（**多出 281 KB / +30%**）。
+
+修复后实测：`python -m backend.train_model` 正常输出 `sample_count=175, positive_rate=0.1429, auc=0.9475`，
+且重新生成的 `ranker_model.json` 与修复前**逐字段完全一致**（ranker 权重、item_similarity、tfidf 全部相同），
+推荐接口首条分数仍是 `0.6289` —— 说明这只是"让命令能跑通"，没有改变任何推荐效果。
+
+（教学页面上第 2 章最后一条知识点专门列了这条，作为「如何定位隐藏 bug」的复盘素材。）
