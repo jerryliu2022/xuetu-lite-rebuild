@@ -2,7 +2,7 @@
 <!--
   知识点：sessionStorage 保持登录态 + SPA 标签页切换
   归属：前端
-  源码出处：frontend/app.js:3     studentId: sessionStorage.getItem("studentId") || "20240101"
+  源码出处：frontend/app.js:13    studentId: sessionStorage.getItem("studentId") || "",
            frontend/app.js:100   sessionStorage.setItem("studentId", state.studentId)
            frontend/app.js:561   if (!sessionStorage.getItem("studentId")) renderLogin() else loadApp()
            frontend/app.js:124-157 renderShell() 标签页切换（改 state 后整体重绘）
@@ -92,7 +92,7 @@
     });
 
     function fakeLogin() {
-      state.studentId = "20240101";
+      state.studentId = "YY08";
       sessionStorage.setItem("studentId", state.studentId);
       render();
     }

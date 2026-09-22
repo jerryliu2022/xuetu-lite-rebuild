@@ -491,7 +491,7 @@ PRESET_SQL: List[Dict[str, str]] = [
             "SELECT v.platform, COUNT(*) AS c\n"
             "FROM behavior_log b\n"
             "JOIN video v ON b.video_id = v.video_id\n"
-            "WHERE b.student_id = '20240101'\n"
+            "WHERE b.student_id = 'YY08'\n"
             "  AND b.event_type IN ('play','complete','like','favorite')\n"
             "GROUP BY v.platform\n"
             "ORDER BY c DESC;"

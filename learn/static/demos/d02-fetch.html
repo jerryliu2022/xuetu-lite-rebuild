@@ -37,15 +37,15 @@
 
   <div>
     <button onclick="callApi('/api/health')">健康检查 /api/health</button>
-    <button onclick="callApi('/api/profile/20240101')">学生画像 /api/profile/20240101</button>
-    <button onclick="callApi('/api/recommendations/professional?student_id=20240101&filter=all')">专业路径推荐</button>
-    <button onclick="callApi('/api/recommendations/jobs?student_id=20240101')">就业路径</button>
-    <button onclick="callApi('/api/recommendations/exam?student_id=20240101')">考研路径</button>
+    <button onclick="callApi('/api/profile/YY08')">学生画像 /api/profile/YY08</button>
+    <button onclick="callApi('/api/recommendations/professional?student_id=YY08&filter=all')">专业路径推荐</button>
+    <button onclick="callApi('/api/recommendations/jobs?student_id=YY08')">就业路径</button>
+    <button onclick="callApi('/api/recommendations/exam?student_id=YY08')">考研路径</button>
     <button onclick="callApi('/api/demo-accounts')">演示账号列表</button>
   </div>
 
   <div style="margin-top:10px">
-    <input id="customPath" value="/api/profile/20240101" style="width:340px" />
+    <input id="customPath" value="/api/profile/YY08" style="width:340px" />
     <button onclick="callApi(document.getElementById('customPath').value)">请求自定义 URL</button>
   </div>
 

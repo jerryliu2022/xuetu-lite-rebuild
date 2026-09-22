@@ -1,17 +1,17 @@
 {
-  "started_at": "2026-09-04T10:35:03",
-  "finished_at": "2026-09-04T10:36:40",
+  "started_at": "2026-09-20T23:58:07",
+  "finished_at": "2026-09-20T23:59:25",
   "results": [
     {
       "domain": "video",
       "source": "B站",
       "inserted": 50,
-      "skipped": 45,
+      "skipped": 40,
       "target": 50,
       "ok": true,
       "message": "ok",
-      "new_count": 2,
-      "updated_count": 48
+      "new_count": 35,
+      "updated_count": 15
     },
     {
       "domain": "video",
@@ -54,8 +54,8 @@
       "target": 31,
       "ok": true,
       "message": "研招网2027官方硕士目录：湖南实际开设 31 个可报考学校-专业组合，理论全矩阵为 145；成功保存 31 条，未解析 0 个",
-      "new_count": 0,
-      "updated_count": 31
+      "new_count": 3,
+      "updated_count": 28
     }
   ],
   "success": false,

@@ -8,6 +8,7 @@ import os
 import random
 import re
 import sqlite3
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -17,6 +18,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
+from . import db as _db
 from .data_acquisition import DB_PATH
 from .train_model import main as train_model
 from .evaluate_model import evaluate
@@ -195,10 +197,7 @@ class CollectionBlocked(RuntimeError):
 
 
 def connect() -> sqlite3.Connection:
-    con = sqlite3.connect(DB_PATH, timeout=30)
-    con.row_factory = sqlite3.Row
-    con.execute("PRAGMA busy_timeout=30000")
-    return con
+    return _db.connection()
 
 
 def fetch_text(url: str, headers: Optional[Dict[str, str]] = None, timeout: int = 8) -> str:
@@ -420,6 +419,26 @@ def sync_recommend_log(con: sqlite3.Connection) -> int:
         )
         """
     )
+    # 候选池只跟 video 表有关，跟学生无关，必须在循环外算一次。
+    # 原实现把它写在 for student 循环体内，25 个账号就重复跑了 25 次这条
+    # 18001 行的 GROUP/ORDER 查询（单次约 357 ms，合计约 9 秒）。
+    negative_pool = con.execute(
+        """
+        SELECT v.video_id AS video_id,
+               COALESCE(NULLIF(v.major, ''), '通用') AS major
+        FROM video v
+        WHERE v.platform='MOOC' OR v.platform='极客时间'
+           OR (v.platform='B站' AND v.source_collected_at IS NOT NULL)
+        ORDER BY v.popularity DESC, v.video_id
+        """
+    ).fetchall()
+    pool_major_counts: Dict[str, int] = {}
+    for row in negative_pool:
+        pool_major_counts[row["major"]] = pool_major_counts.get(row["major"], 0) + 1
+    # 每个专业最多贡献 5 条负样本，池子总共能插入的上限就是各专业配额之和。
+    # 一旦插入数达到这个上限，后面的行不可能再有能过配额判断的，可以安全收工。
+    max_negative_rows = sum(min(5, count) for count in pool_major_counts.values())
+
     for student in con.execute(
         """
         SELECT student_id FROM student
@@ -452,39 +471,33 @@ def sync_recommend_log(con: sqlite3.Connection) -> int:
                 """,
                 (student_id, "professional", positive["video_id"], now),
             )
-        negative_pool = [
-            row["video_id"]
-            for row in con.execute(
-                """
-                SELECT v.video_id
-                FROM video v
-                WHERE v.platform='MOOC' OR v.platform='极客时间'
-                   OR (v.platform='B站' AND v.source_collected_at IS NOT NULL)
-                ORDER BY v.popularity DESC, v.video_id
-                """
-            ).fetchall()
-        ]
         seen_major: Dict[str, int] = {}
-        for video_id in negative_pool:
-            if len(existing_candidates) >= 30:
+        picked: List[Tuple[str, str, str, str]] = []
+        for row in negative_pool:
+            # 每个专业最多 5 条负样本。插入数达到理论上限后就不可能有新的插入了，
+            # 直接收工。
+            #
+            # 原实现这里写的是 `if len(existing_candidates) >= 30: break`，
+            # 但 existing_candidates 在整个循环里从不更新，长度恒为初始值，
+            # 于是这个 break 永远不触发 —— 每次调用都要把 18001 条池子完整扫一遍。
+            if len(picked) >= max_negative_rows:
                 break
+            video_id = row["video_id"]
             if video_id in existing_candidates:
                 continue
-            video_row = con.execute(
-                "SELECT major FROM video WHERE video_id=?",
-                (video_id,),
-            ).fetchone()
-            major_value = (video_row[0] if video_row else "通用") or "通用"
+            major_value = row["major"]
             if seen_major.get(major_value, 0) >= 5:
                 continue
             seen_major[major_value] = seen_major.get(major_value, 0) + 1
-            con.execute(
+            picked.append((student_id, "professional", video_id, now))
+        if picked:
+            con.executemany(
                 """
                 INSERT INTO recommend_log
                   (student_id, scenario, candidate_id, impression, click, created_at, is_synthetic)
                 VALUES (?,?,?,1,0,?,1)
                 """,
-                (student_id, "professional", video_id, now),
+                picked,
             )
     return 0
 
@@ -1512,6 +1525,82 @@ def run_live_collection(
         train_model()
         report["evaluation"] = evaluate()["ranking_eval"]["averages"]
     return report
+
+
+# ---------------------------------------------------------------- 后台采集
+# run_live_collection 要联网爬 4~5 个数据源、再重训模型 + 全量评估，
+# 实测分钟级。与 evaluate_async 同理，必须放【独立子进程】执行：
+# 请求线程同步跑会让前端 fetch 挂住；即使是后台线程，
+# 重训+评估的纯 Python 计算也会占死 GIL 拖慢全部接口。
+# CLI 入口 main() 已存在（-m backend.live_collectors），直接复用。
+
+import subprocess
+import sys
+
+_COLLECT_LOCK = threading.Lock()
+_COLLECT_PROC: Any = None
+_COLLECT_STATE: Dict[str, Any] = {
+    "status": "idle",       # idle | running | done | error
+    "started_at": None,
+    "finished_at": None,
+    "duration_ms": None,
+    "error": None,
+}
+
+_COLLECT_LOG = ROOT / "data" / "artifacts" / "collect_last.log"
+
+
+def collection_status() -> Dict[str, Any]:
+    global _COLLECT_STATE, _COLLECT_PROC
+    with _COLLECT_LOCK:
+        if _COLLECT_STATE["status"] == "running" and _COLLECT_PROC is not None:
+            code = _COLLECT_PROC.poll()
+            if code is not None:
+                finished = datetime.now().isoformat(timespec="seconds")
+                duration = round((time.time() - _COLLECT_PROC.started_ts) * 1000)
+                if code == 0:
+                    _COLLECT_STATE.update({"status": "done", "finished_at": finished,
+                                           "duration_ms": duration, "error": None})
+                else:
+                    tail = ""
+                    try:
+                        tail = _COLLECT_LOG.read_text(encoding="utf-8", errors="replace")[-300:]
+                    except Exception:
+                        pass
+                    _COLLECT_STATE.update({"status": "error", "finished_at": finished,
+                                           "duration_ms": duration,
+                                           "error": f"采集进程退出码 {code}；{tail}"})
+                _COLLECT_PROC = None
+        return dict(_COLLECT_STATE)
+
+
+def collect_async(video_per_platform: int = 50, job_total: int = 200,
+                  collect_exam: bool = True, retrain: bool = True) -> Dict[str, Any]:
+    global _COLLECT_PROC, _COLLECT_STATE
+    with _COLLECT_LOCK:
+        if _COLLECT_STATE["status"] == "running" and _COLLECT_PROC is not None:
+            return dict(_COLLECT_STATE, status="already_running")
+        root = Path(__file__).resolve().parents[1]
+        _COLLECT_LOG.parent.mkdir(parents=True, exist_ok=True)
+        log = open(_COLLECT_LOG, "w", encoding="utf-8")
+        cmd = [sys.executable, "-m", "backend.live_collectors",
+               "--video-per-platform", str(video_per_platform),
+               "--job-total", str(job_total)]
+        if not collect_exam:
+            cmd.append("--skip-exam")
+        if not retrain:
+            cmd.append("--no-retrain")
+        proc = subprocess.Popen(cmd, cwd=str(root), stdout=log, stderr=subprocess.STDOUT)
+        proc.started_ts = time.time()
+        _COLLECT_PROC = proc
+        _COLLECT_STATE.update({
+            "status": "running",
+            "started_at": datetime.now().isoformat(timespec="seconds"),
+            "finished_at": None,
+            "duration_ms": None,
+            "error": None,
+        })
+    return dict(_COLLECT_STATE, status="started")
 
 
 def main() -> None:

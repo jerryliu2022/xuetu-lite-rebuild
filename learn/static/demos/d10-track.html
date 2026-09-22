@@ -52,7 +52,7 @@
 
   <script>
     const BASE = "http://127.0.0.1:8765";
-    const SID = "20240101";
+    const SID = "YY08";
 
     async function track(eventType, videoId) {
       const status = document.getElementById("status");
@@ -112,7 +112,7 @@
           body: JSON.stringify({
             sql: "SELECT v.platform, COUNT(*) AS c\n"
                + "FROM behavior_log b JOIN video v ON b.video_id=v.video_id\n"
-               + "WHERE b.student_id='20240101'\n"
+               + "WHERE b.student_id='YY08'\n"
                + "  AND b.event_type IN ('play','complete','like','favorite')\n"
                + "GROUP BY v.platform ORDER BY c DESC",
           }),

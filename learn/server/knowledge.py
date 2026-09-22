@@ -37,7 +37,7 @@ CHAPTERS: List[Dict[str, Any]] = [
                 "summary": "浏览器 → HTTP 请求 → 后端路由 → SQL 查询 → 数据库 → 返回 JSON → 前端渲染成 HTML",
                 "points": [
                     "用户在页面上点「专业路径推荐」",
-                    "前端 JS 执行 fetch('http://127.0.0.1:8765/api/recommendations/professional?student_id=20240101')",
+                    "前端 JS 执行 fetch('http://127.0.0.1:8765/api/recommendations/professional?student_id=YY08')",
                     "后端 FastAPI 根据 URL 找到对应的函数（路由）",
                     "函数里用 sqlite3 查询 xuetu_lite.db",
                     "数据库返回行，Python 组装成 list/dict",
@@ -265,13 +265,13 @@ CHAPTERS: List[Dict[str, Any]] = [
                 "title": "查询参数：?student_id=xxx 这部分",
                 "summary": "函数参数写成普通 Python 参数，FastAPI 自动从 URL 的 ? 后面取值",
                 "points": [
-                    "def professional(student_id: str = '20240101', filter: str = 'all')",
+                    "def professional(student_id: str = 'YY08', filter: str = 'all')",
                     "带默认值就是可选参数，不带就会缺失则报 422",
                     "类型注解不是摆设：FastAPI 用它做校验和文档",
                 ],
                 "source": "backend/app.py:147-149 professional()",
                 "api": {"method": "GET", "path": "/api/recommendations/professional",
-                       "params": {"student_id": "20240101", "filter": "all"},
+                       "params": {"student_id": "YY08", "filter": "all"},
                        "desc": "专业路径推荐，filter 可填 studying/advanced/vacation"},
             },
             {
@@ -286,7 +286,7 @@ CHAPTERS: List[Dict[str, Any]] = [
                     "/api/videos/{video_id}/progress 是典型的 REST 风格",
                 ],
                 "source": "backend/app.py:137-139 /api/profile/{student_id}；app.py:178 /api/videos/{video_id}/progress",
-                "api": {"method": "GET", "path": "/api/profile/20240101", "desc": "学生画像：基本信息+培养方案+成就+学习记录"},
+                "api": {"method": "GET", "path": "/api/profile/YY08", "desc": "学生画像：基本信息+培养方案+成就+学习记录"},
             },
             {
                 "id": "b04",
@@ -301,7 +301,7 @@ CHAPTERS: List[Dict[str, Any]] = [
                 ],
                 "source": "backend/app.py:67-70 LoginPayload；app.py:119-125 login()",
                 "api": {"method": "POST", "path": "/api/login",
-                       "body": {"student_id": "20240101", "password": "123456"},
+                       "body": {"student_id": "YY08", "password": "123456"},
                        "desc": "登录接口，返回 token 和学生信息"},
             },
             {
@@ -347,7 +347,7 @@ CHAPTERS: List[Dict[str, Any]] = [
                 ],
                 "source": "backend/app.py:178-207 /api/videos/{video_id}/progress",
                 "api": {"method": "POST", "path": "/api/videos/V002/progress",
-                       "body": {"student_id": "20240101", "episode_no": 6},
+                       "body": {"student_id": "YY08", "episode_no": 6},
                        "desc": "更新学习进度，注意这会真的修改正式库数据"},
             },
             {
@@ -395,7 +395,7 @@ CHAPTERS: List[Dict[str, Any]] = [
                 ],
                 "source": "backend/app.py:27 SSO_SECRET；app.py:128-134 /api/sso",
                 "api": {"method": "GET", "path": "/api/sso",
-                       "params": {"student_id": "20240101", "ts": "1700000000", "sig": "错误的签名"},
+                       "params": {"student_id": "YY08", "ts": "1700000000", "sig": "错误的签名"},
                        "desc": "故意传错签名，观察 401 返回"},
             },
             {

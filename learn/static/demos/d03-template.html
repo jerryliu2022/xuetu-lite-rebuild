@@ -75,7 +75,7 @@
       const grid = document.getElementById("grid");
       grid.innerHTML = "<div>正在请求后端...</div>";
       try {
-        const res = await fetch("http://127.0.0.1:8765/api/recommendations/professional?student_id=20240101&filter=all");
+        const res = await fetch("http://127.0.0.1:8765/api/recommendations/professional?student_id=YY08&filter=all");
         if (!res.ok) throw new Error("后端未启动或请求失败");
         const list = await res.json();
         render(list);

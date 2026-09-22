@@ -178,7 +178,7 @@ def models():
 
 
 @app.get("/api/learn/model/run")
-def model_run(key: str = "popularity", student_id: str = "20240101", topn: int = 9):
+def model_run(key: str = "popularity", student_id: str = "YY08", topn: int = 9):
     try:
         return models_playground.run_model(key, student_id, topn)
     except Exception as exc:  # noqa: BLE001
@@ -186,7 +186,7 @@ def model_run(key: str = "popularity", student_id: str = "20240101", topn: int =
 
 
 @app.get("/api/learn/model/compare")
-def model_compare(student_id: str = "20240101"):
+def model_compare(student_id: str = "YY08"):
     try:
         return {"student_id": student_id, "rows": models_playground.compare_all(student_id)}
     except Exception as exc:  # noqa: BLE001
@@ -219,7 +219,7 @@ def proxy(payload: ProxyPayload):
 
 # d10-track.html 用这个接口把刚写入的埋点读出来
 @app.get("/api/learn/behavior-log")
-def behavior_log(student_id: str = "20240101", limit: int = 10):
+def behavior_log(student_id: str = "YY08", limit: int = 10):
     if not MAIN_DB.exists():
         return []
     con = sqlite3.connect(f"file:{MAIN_DB}?mode=ro", uri=True)
@@ -242,36 +242,36 @@ MAIN_APIS = [
     {"method": "GET", "path": "/api/demo-accounts", "params": [],
      "desc": "5 个演示账号及其学习概况", "source": "backend/app.py:142-144"},
     {"method": "POST", "path": "/api/login", "params": [],
-     "body": {"student_id": "20240101", "password": "123456"},
+     "body": {"student_id": "YY08", "password": "123456"},
      "desc": "账号密码登录，返回 token 与学生信息", "source": "backend/app.py:119-125"},
     {"method": "GET", "path": "/api/sso", "params": [
-        {"name": "student_id", "value": "20240101"},
+        {"name": "student_id", "value": "YY08"},
         {"name": "ts", "value": "1700000000"},
         {"name": "sig", "value": "wrong-signature"}],
      "desc": "HMAC 签名免登录（这里故意传错签名演示 401）", "source": "backend/app.py:128-134"},
-    {"method": "GET", "path": "/api/profile/20240101", "params": [],
+    {"method": "GET", "path": "/api/profile/YY08", "params": [],
      "desc": "学生画像：基本信息 + 培养方案 + 成就 + 学习记录", "source": "backend/app.py:137-139"},
     {"method": "GET", "path": "/api/recommendations/professional", "params": [
-        {"name": "student_id", "value": "20240101"},
+        {"name": "student_id", "value": "YY08"},
         {"name": "filter", "value": "all"}],
      "desc": "专业路径推荐；filter 可改成 studying / advanced / vacation",
      "source": "backend/app.py:147-149"},
     {"method": "GET", "path": "/api/recommendations/jobs", "params": [
-        {"name": "student_id", "value": "20240101"}],
+        {"name": "student_id", "value": "YY08"}],
      "desc": "岗位匹配 + 技能反推学习路径", "source": "backend/app.py:152-154"},
     {"method": "GET", "path": "/api/recommendations/exam", "params": [
-        {"name": "student_id", "value": "20240101"},
+        {"name": "student_id", "value": "YY08"},
         {"name": "school", "value": ""},
         {"name": "major", "value": ""}],
      "desc": "考研路径：公共课 + 专业课（可指定院校专业）", "source": "backend/app.py:157-159"},
     {"method": "GET", "path": "/api/videos/V002", "params": [
-        {"name": "student_id", "value": "20240101"}],
+        {"name": "student_id", "value": "YY08"}],
      "desc": "视频详情：全部集数 + 该学生的进度", "source": "backend/app.py:162-164"},
     {"method": "POST", "path": "/api/videos/V002/progress", "params": [],
-     "body": {"student_id": "20240101", "episode_no": 6},
+     "body": {"student_id": "YY08", "episode_no": 6},
      "desc": "更新学习进度（UPSERT，会真的写库）", "source": "backend/app.py:178-207"},
     {"method": "POST", "path": "/api/track", "params": [],
-     "body": {"student_id": "20240101", "video_id": "V002", "event_type": "click", "duration": 0},
+     "body": {"student_id": "YY08", "video_id": "V002", "event_type": "click", "duration": 0},
      "desc": "埋点上报：写一条行为日志", "source": "backend/app.py:167-175"},
     {"method": "GET", "path": "/api/admin/model-report", "params": [],
      "desc": "训练报告：样本数、正样本率、AUC、8 个特征名", "source": "backend/app.py:224-226"},

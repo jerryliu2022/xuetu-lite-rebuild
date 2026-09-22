@@ -28,24 +28,34 @@ def tokenize(text: str) -> List[str]:
     return ascii_terms + zh + bigrams
 
 
-def build_tfidf(videos: List[Dict[str, Any]], courses_by_id: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
+def build_tfidf(
+    courses_by_id: Dict[str, Dict[str, Any]],
+    videos_by_course: Dict[str, List[Dict[str, Any]]],
+) -> Dict[str, Any]:
+    """课程级 TF-IDF。
+
+    原先是对每个视频建向量再做两两相似度，在 4.5 万条资源上就是 20 亿次点积，
+    训练直接跑不完。改成课程粒度：课程名 + 概念 + 该课头部视频标题，
+    898 门课的规模下用倒排索引比较，秒级完成，且相似课程本来就该在课程层面判断。
+    """
     docs: Dict[str, Counter] = {}
     df: Counter = Counter()
-    for video in videos:
-        course = courses_by_id[video["course_id"]]
-        text = " ".join([video["title"], video["tags"], video["summary"], course["name"], course["concepts"]])
-        counts = Counter(tokenize(text))
-        docs[video["video_id"]] = counts
+    for course_id, course in courses_by_id.items():
+        parts = [course.get("name") or "", course.get("concepts") or ""]
+        for video in videos_by_course.get(course_id, [])[:6]:
+            parts.append(video.get("title") or "")
+        counts = Counter(tokenize(" ".join(parts)))
+        docs[course_id] = counts
         for term in counts:
             df[term] += 1
 
-    n_docs = len(videos)
+    n_docs = len(docs) or 1
     idf = {term: math.log((n_docs + 1) / (freq + 1)) + 1 for term, freq in df.items()}
     vectors: Dict[str, Dict[str, float]] = {}
-    for video_id, counts in docs.items():
+    for course_id, counts in docs.items():
         raw = {term: (1 + math.log(count)) * idf[term] for term, count in counts.items()}
         norm = math.sqrt(sum(value * value for value in raw.values())) or 1.0
-        vectors[video_id] = {term: round(value / norm, 6) for term, value in raw.items()}
+        vectors[course_id] = {term: round(value / norm, 6) for term, value in raw.items()}
     return {"idf": idf, "vectors": vectors}
 
 
@@ -55,17 +65,56 @@ def dot(a: Dict[str, float], b: Dict[str, float]) -> float:
     return sum(value * b.get(term, 0.0) for term, value in a.items())
 
 
-def build_item_similarity(vectors: Dict[str, Dict[str, float]]) -> Dict[str, List[Dict[str, float]]]:
+def build_course_similarity(vectors: Dict[str, Dict[str, float]], top_k: int = 10) -> Dict[str, List[Dict[str, Any]]]:
+    """用倒排索引找相似课程，只累加共享词上的贡献，避免全量两两点积。"""
+    postings: Dict[str, List[str]] = defaultdict(list)
+    for course_id, vector in vectors.items():
+        for term in vector:
+            postings[term].append(course_id)
+
+    out: Dict[str, List[Dict[str, Any]]] = {}
+    for course_id, vector in vectors.items():
+        acc: Dict[str, float] = defaultdict(float)
+        for term, weight in vector.items():
+            for other in postings[term]:
+                if other != course_id:
+                    acc[other] += weight * vectors[other][term]
+        ranked = sorted(acc.items(), key=lambda item: item[1], reverse=True)[:top_k]
+        out[course_id] = [
+            {"course_id": key, "score": round(value, 6)} for key, value in ranked if value > 0.03
+        ]
+    return out
+
+
+def build_item_similarity(
+    watched_ids: Iterable[str],
+    videos_by_id: Dict[str, Dict[str, Any]],
+    videos_by_course: Dict[str, List[Dict[str, Any]]],
+    course_similarity: Dict[str, List[Dict[str, Any]]],
+    top_k: int = 8,
+    per_course: int = 6,
+) -> Dict[str, List[Dict[str, float]]]:
+    """视频级相似度：同课资源 + 相似课程头部资源。
+
+    只给学生实际看过的视频建表（几百条），而不是全部 4.5 万条。
+    """
     out: Dict[str, List[Dict[str, float]]] = {}
-    for video_id, vector in vectors.items():
-        sims = []
-        for other_id, other in vectors.items():
-            if other_id == video_id:
-                continue
-            score = dot(vector, other)
-            if score > 0:
-                sims.append({"video_id": other_id, "score": round(score, 6)})
-        out[video_id] = sorted(sims, key=lambda item: item["score"], reverse=True)[:8]
+    for video_id in watched_ids:
+        video = videos_by_id.get(video_id)
+        if not video:
+            continue
+        course_id = video["course_id"]
+        sims: Dict[str, float] = {}
+        for other in videos_by_course.get(course_id, []):
+            if other["video_id"] != video_id:
+                sims[other["video_id"]] = 0.92
+        for rank, item in enumerate(course_similarity.get(course_id, [])):
+            for other in videos_by_course.get(item["course_id"], [])[:per_course]:
+                score = round(item["score"] * 0.85 - rank * 0.01, 6)
+                if score > sims.get(other["video_id"], 0.0):
+                    sims[other["video_id"]] = score
+        ranked = sorted(sims.items(), key=lambda item: item[1], reverse=True)[:top_k]
+        out[video_id] = [{"video_id": key, "score": value} for key, value in ranked]
     return out
 
 
@@ -102,56 +151,111 @@ def user_history(con: sqlite3.Connection, student_id: str) -> List[str]:
     ]
 
 
+class FeatureCache:
+    """训练期按学生缓存画像，避免为每个样本重复查库。
+
+    原实现里每造一个样本就要查 4 次数据库（学习记录、全球课程状态、行为偏好），
+    样本一多训练时间就被数据库往返拖死。
+    """
+
+    def __init__(self, con: sqlite3.Connection, videos_by_id: Dict[str, Dict[str, Any]],
+                 courses: Dict[str, Dict[str, Any]]) -> None:
+        self.con = con
+        self.videos_by_id = videos_by_id
+        self.courses = courses
+        self._students: Dict[str, Dict[str, Any]] = {}
+        self._descendants: Dict[str, int] = {}
+
+    def student_state(self, student: Dict[str, Any]) -> Dict[str, Any]:
+        student_id = student["student_id"]
+        if student_id in self._students:
+            return self._students[student_id]
+        major = student["major"]
+        term = int(student["semester"])
+        history = user_history(self.con, student_id)
+        completed_courses = {
+            self.videos_by_id[row["video_id"]]["course_id"]
+            for row in rows(
+                self.con,
+                "SELECT video_id FROM learning_record WHERE student_id=? AND status='completed'",
+                (student_id,),
+            )
+            if row["video_id"] in self.videos_by_id
+        }
+        platform_rows = rows(
+            self.con,
+            """
+            SELECT v.platform AS platform, COUNT(*) AS c
+            FROM behavior_log b JOIN video v ON b.video_id=v.video_id
+            WHERE b.student_id=? AND b.event_type IN ('play','complete','like','favorite')
+            GROUP BY v.platform
+            """,
+            (student_id,),
+        )
+        total = sum(row["c"] for row in platform_rows) or 1
+        state = {
+            "history": history,
+            "completed_courses": completed_courses,
+            # 与 recommender 的召回口径一致：按「学生自己的专业 + 学期」判断，
+            # 而不是全库 course.status（那样所有学生共用同一份"正在学"集合）
+            "current_courses": {
+                course_id for course_id, course in self.courses.items()
+                if course.get("major") == major and course.get("semester") == term
+            },
+            "next_courses": {
+                course_id for course_id, course in self.courses.items()
+                if course.get("major") == major and course.get("semester") == term + 1
+            },
+            "platform_pref": {row["platform"]: row["c"] / total for row in platform_rows},
+        }
+        self._students[student_id] = state
+        return state
+
+    def descendants(self, course_id: str) -> int:
+        if course_id not in self._descendants:
+            self._descendants[course_id] = descendants(self.courses, course_id)
+        return self._descendants[course_id]
+
+    def similarity(self, student_state: Dict[str, Any], video_id: str,
+                   item_similarity: Dict[str, List[Dict[str, float]]]) -> float:
+        best = 0.0
+        for watched in student_state["history"]:
+            for item in item_similarity.get(watched, []):
+                if item["video_id"] == video_id:
+                    best = max(best, item["score"])
+        return min(best, 1.0)
+
+
+def curriculum_graph_score(state: Dict[str, Any], course: Dict[str, Any]) -> float:
+    """课程图谱特征，与 recommender.graph_score 用同一套分档。"""
+    course_id = course["course_id"]
+    if course_id in state["current_courses"]:
+        return 1.0
+    prereqs = [part.strip() for part in (course.get("prerequisites") or "").split(",") if part.strip()]
+    if any(prereq in state["completed_courses"] for prereq in prereqs):
+        return 0.82
+    if course_id in state["next_courses"]:
+        return 0.66
+    return 0.4
+
+
 def feature_vector(
-    con: sqlite3.Connection,
+    cache: FeatureCache,
     student: Dict[str, Any],
     video: Dict[str, Any],
     course: Dict[str, Any],
-    courses: Dict[str, Dict[str, Any]],
-    videos_by_id: Dict[str, Dict[str, Any]],
     item_similarity: Dict[str, List[Dict[str, float]]],
 ) -> List[float]:
-    completed_courses = {
-        videos_by_id[row["video_id"]]["course_id"]
-        for row in rows(con, "SELECT video_id FROM learning_record WHERE student_id=? AND status='completed'", (student["student_id"],))
-        if row["video_id"] in videos_by_id
-    }
-    studying_courses = {row["course_id"] for row in rows(con, "SELECT course_id FROM course WHERE status='studying'")}
-    planned_courses = {row["course_id"] for row in rows(con, "SELECT course_id FROM course WHERE semester=?", (student["semester"] + 1,))}
-    history = user_history(con, student["student_id"])
-    sim_score = 0.0
-    for watched in history:
-        for item in item_similarity.get(watched, []):
-            if item["video_id"] == video["video_id"]:
-                sim_score = max(sim_score, item["score"])
-    platform_rows = rows(
-        con,
-        """
-        SELECT v.platform, COUNT(*) AS c
-        FROM behavior_log b JOIN video v ON b.video_id=v.video_id
-        WHERE b.student_id=? AND b.event_type IN ('play','complete','like','favorite')
-        GROUP BY v.platform
-        """,
-        (student["student_id"],),
-    )
-    total_platform = sum(row["c"] for row in platform_rows) or 1
-    platform_pref = sum(row["c"] for row in platform_rows if row["platform"] == video["platform"]) / total_platform
-    prereq_hit = 0.0
-    prereqs = [part.strip() for part in (course.get("prerequisites") or "").split(",") if part.strip()]
-    if course["course_id"] in studying_courses:
-        prereq_hit = 1.0
-    elif any(prereq in completed_courses for prereq in prereqs):
-        prereq_hit = 0.8
-    elif course["course_id"] in planned_courses:
-        prereq_hit = 0.65
+    state = cache.student_state(student)
+    platform_pref = state["platform_pref"].get(video["platform"], 0.0)
     return [
         math.log1p(video["popularity"]) / 14.0,
         float(video["rating"]) / 5.0,
         1.0 - float(video["is_paid"]) * 0.22,
-        prereq_hit,
-        min(sim_score, 1.0),
+        curriculum_graph_score(state, course),
+        cache.similarity(state, video["video_id"], item_similarity),
         platform_pref,
-        min(descendants(courses, course["course_id"]) / 4.0, 1.0),
+        min(cache.descendants(course["course_id"]) / 4.0, 1.0),
         major_alignment(student, video, course),
     ]
 
@@ -216,10 +320,16 @@ def _build_samples(con: sqlite3.Connection, skip_pairs=None) -> Tuple[List[Tuple
     videos = rows(con, "SELECT * FROM video")
     courses = {row["course_id"]: row for row in rows(con, "SELECT * FROM course")}
     videos_by_id = {row["video_id"]: row for row in videos}
-    tfidf = build_tfidf(videos, courses)
-    item_similarity = build_item_similarity(tfidf["vectors"])
-    samples = []
-    logs = rows(
+
+    videos_by_course: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+    for video in videos:
+        videos_by_course[video["course_id"]].append(video)
+    for course_id in videos_by_course:
+        videos_by_course[course_id].sort(key=lambda item: item["popularity"], reverse=True)
+
+    tfidf = build_tfidf(courses, videos_by_course)
+    course_similarity = build_course_similarity(tfidf["vectors"])
+    log_rows = rows(
         con,
         """
         SELECT * FROM recommend_log
@@ -228,18 +338,45 @@ def _build_samples(con: sqlite3.Connection, skip_pairs=None) -> Tuple[List[Tuple
         """ % placeholders,
         student_ids,
     )
-    for log in logs:
+    watched_ids = {row["candidate_id"] for row in log_rows}
+    watched_ids |= {
+        row["video_id"] for row in rows(con, "SELECT video_id FROM learning_record")
+    }
+    item_similarity = build_item_similarity(
+        watched_ids, videos_by_id, videos_by_course, course_similarity
+    )
+
+    cache = FeatureCache(con, videos_by_id, courses)
+    students = {
+        row["student_id"]: row
+        for row in rows(con, "SELECT * FROM student")
+    }
+    samples: List[Tuple[List[float], int]] = []
+    for log in log_rows:
         if skip_pairs and (log["student_id"], log["candidate_id"]) in skip_pairs:
             continue
-        student = rows(con, "SELECT * FROM student WHERE student_id=?", (log["student_id"],))[0]
-        video = videos_by_id[log["candidate_id"]]
+        student = students.get(log["student_id"])
+        video = videos_by_id.get(log["candidate_id"])
+        if not student or not video:
+            continue
+        course = courses.get(video["course_id"])
+        if not course:
+            continue
         samples.append(
             (
-                feature_vector(con, student, video, courses[video["course_id"]], courses, videos_by_id, item_similarity),
+                feature_vector(cache, student, video, course, item_similarity),
                 int(log["click"]),
             )
         )
-    return samples, item_similarity, tfidf, {"videos": videos, "courses": courses, "videos_by_id": videos_by_id}
+    context = {
+        "videos": videos,
+        "courses": courses,
+        "videos_by_id": videos_by_id,
+        "videos_by_course": videos_by_course,
+        "cache": cache,
+        "students": students,
+    }
+    return samples, item_similarity, tfidf, context
 
 
 def train_fold_model(base_bundle=None, skip_pairs=None) -> Dict[str, Any]:
@@ -256,9 +393,10 @@ def train_fold_model(base_bundle=None, skip_pairs=None) -> Dict[str, Any]:
     if context is None:
         samples, item_similarity, tfidf, context = _build_samples(con, skip_pairs)
     else:
-        videos = context["videos"]
         courses = context["courses"]
         videos_by_id = context["videos_by_id"]
+        cache = context["cache"]
+        students = context["students"]
         student_ids = [account["student_id"] for account in DEMO_ACCOUNTS]
         placeholders = ",".join("?" * len(student_ids))
         samples = []
@@ -273,11 +411,16 @@ def train_fold_model(base_bundle=None, skip_pairs=None) -> Dict[str, Any]:
         ):
             if skip_pairs and (log["student_id"], log["candidate_id"]) in skip_pairs:
                 continue
-            student = rows(con, "SELECT * FROM student WHERE student_id=?", (log["student_id"],))[0]
-            video = videos_by_id[log["candidate_id"]]
+            student = students.get(log["student_id"])
+            video = videos_by_id.get(log["candidate_id"])
+            if not student or not video:
+                continue
+            course = courses.get(video["course_id"])
+            if not course:
+                continue
             samples.append(
                 (
-                    feature_vector(con, student, video, courses[video["course_id"]], courses, videos_by_id, item_similarity),
+                    feature_vector(cache, student, video, course, item_similarity),
                     int(log["click"]),
                 )
             )

@@ -13,7 +13,7 @@ const state = {
   chapters: [],
   layers: {},
   models: [],
-  students: ["20240101", "20240102", "20240103", "20240104", "20240105"],
+  students: ["YY08", "YY09", "YY10", "YY11", "YY12"],
   view: "hero",          // hero | chapter | item | sql | api | model
   currentId: null,
   apiList: [],
@@ -718,7 +718,7 @@ async function renderModelLab() {
 
   $("#runModelBtn").addEventListener("click", runSelectedModel);
 
-  // 支持 ?view=model&run=full&sid=20240101 直接运行某个模型（方便分享链接）
+  // 支持 ?view=model&run=full&sid=YY08 直接运行某个模型（方便分享链接）
   const params = new URLSearchParams(location.search);
   if (params.get("run")) {
     $("#modelSelect").value = params.get("run");

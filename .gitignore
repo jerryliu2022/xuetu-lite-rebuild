@@ -15,3 +15,39 @@ dist/
 # 系统
 .DS_Store
 Thumbs.db
+
+# ---------------------------------------------------------------
+# 开发期临时产物（不进版本库）
+# 根目录下 _ 开头的是调试脚本与它们的输出，用完即弃
+# ---------------------------------------------------------------
+_*.py
+_*.txt
+_*.log
+_*.png
+
+# 验收截图（其中 _shots/ 是早期脚本的遗留输出，现行脚本写到 data/artifacts/ui_shots/）
+_shots/
+
+# 调试脚本归档目录
+_scratch/
+
+# 无头 Chrome 的固定 profile（含登录态，体积大，不入库）
+.chrome-profile/
+data/artifacts/.chrome-profile/
+
+# 数据库备份
+data/artifacts/*.db.bak*
+data/artifacts/*.bak
+
+# 联网探针抓下来的原始页面（体积大，可随时重抓）
+data/artifacts/*_probe.html
+data/artifacts/*_search.html
+data/artifacts/tmp_*
+data/artifacts/chsi_*
+data/artifacts/mooc_*
+data/artifacts/mooc_core.js
+data/artifacts/mooc_context.txt
+
+# 验收工具的运行产物（报告与截图保留在本地，不入库）
+data/artifacts/ui_shots/
+data/artifacts/ui_verify_report.txt

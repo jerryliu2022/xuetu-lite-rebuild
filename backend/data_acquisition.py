@@ -11,6 +11,10 @@ RAW_DIR = ROOT / "data" / "raw"
 DB_PATH = ROOT / "data" / "processed" / "xuetu_lite.db"
 
 
+# 连接调优（长连接池、WAL、synchronous）统一放在 backend/db.py，
+# 本模块只负责库表结构与种子数据落库。
+
+
 def seed_payload() -> Dict[str, List[Dict[str, Any]]]:
     """Competition-friendly public-source seed data.
 
@@ -159,10 +163,15 @@ def execute_many(con: sqlite3.Connection, sql: str, rows: Iterable[Dict[str, Any
 
 
 def reset_database() -> None:
+    # 重建会 unlink 库文件，必须先把进程里所有长连接放掉，
+    # 否则 Windows 上文件被占用会删不掉（见 backend/db.py）。
+    from . import db as _db
+
+    _db.close_all()
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     if DB_PATH.exists():
         DB_PATH.unlink()
-    con = sqlite3.connect(DB_PATH)
+    con = _db.open_connection()
     con.execute("PRAGMA foreign_keys = ON")
     con.executescript(
         """
@@ -327,6 +336,9 @@ def reset_database() -> None:
     execute_many(con, "INSERT INTO recommend_log (student_id,scenario,candidate_id,impression,click,created_at) VALUES (:student_id,:scenario,:candidate_id,:impression,:click,:created_at)", rec_logs)
     con.commit()
     con.close()
+    # 新建的库文件默认是 delete 日志模式，这里补一次 WAL，
+    # 否则重建之后的写接口会退回每笔 100 ms 以上的 fsync 延迟。
+    _db.enable_wal()
 
 
 def main() -> None:

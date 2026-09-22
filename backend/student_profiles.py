@@ -1,76 +1,51 @@
+"""学生账号与画像。
+
+岳阳学院 2026 年招生的 25 个专业各配一个演示账号（学号 YY01 ~ YY25），
+账号的专业、院系、培养方案直接来自 `yueyang_curriculum.MAJORS`，
+所以账号资料和专业数据永远一致，不会出现"账号是计算机专业、课表是别的专业"这种错位。
+
+学习行为的生成规则见 `data_expansion.seed_learning_records_for`：
+按培养方案把往期学期课程标记为已修完、本学期课程标记为正在学，
+推荐引擎的"本学期 / 下学期"召回因此有真实依据。
+"""
+
 from __future__ import annotations
 
 import sqlite3
-from datetime import datetime, timedelta
-from pathlib import Path
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-ROOT = Path(__file__).resolve().parents[1]
-DB_PATH = ROOT / "data" / "processed" / "xuetu_lite.db"
+from . import db as _db
+from .yueyang_curriculum import MAJORS, SCHOOL_NAME
 
-# 5 个目标专业各配一个正式演示账号，账号资料与专业方向一一对应。
+# 库路径统一由 backend/db.py 提供，避免每个模块各写一遍、改一处漏一处
+DB_PATH = _db.DB_PATH
+
+ACCOUNT_NAMES = [
+    "李明", "周然", "陈思", "林澈", "赵程", "孙悦", "吴桐", "郑好", "王泽",
+    "冯琪", "蒋一帆", "沈嘉言", "韩雨桐", "杨帆", "许安然", "何嘉树", "邓雅",
+    "曹亦辰", "彭书瑶", "苏子墨", "蒋知远", "谢清和", "乔若谷", "樊星辰", "秦望舒",
+]
+
+# 25 个专业账号：学号 YY01~YY25，与 major 表的主键顺序一一对应
 DEMO_ACCOUNTS: List[Dict[str, Any]] = [
     {
-        "student_id": "20240101",
-        "name": "李明",
-        "school": "江城大学",
-        "major": "计算机科学与技术",
-        "grade": "大二",
-        "semester": 3,
-        "level": 6,
-        "xp": 1280,
-        "next_xp": 1500,
-        "intro": "基础课程已通关，正在补数据结构与算法。",
-    },
-    {
-        "student_id": "20240102",
-        "name": "周然",
-        "school": "江城大学",
-        "major": "软件工程",
-        "grade": "大三",
-        "semester": 5,
-        "level": 7,
-        "xp": 1640,
-        "next_xp": 2100,
-        "intro": "以 Java 后端与软件工程实战为主线。",
-    },
-    {
-        "student_id": "20240103",
-        "name": "陈思",
-        "school": "江城大学",
-        "major": "数据科学与大数据技术",
+        "student_id": f"YY{index:02d}",
+        "name": ACCOUNT_NAMES[(index - 1) % len(ACCOUNT_NAMES)],
+        "school": SCHOOL_NAME,
+        "major": major["name"],
         "grade": "大二",
         "semester": 3,
         "level": 5,
-        "xp": 930,
-        "next_xp": 1200,
-        "intro": "正在积累 SQL、统计分析与数据科学工具链。",
-    },
-    {
-        "student_id": "20240104",
-        "name": "林澈",
-        "school": "江城大学",
-        "major": "人工智能",
-        "grade": "大二",
-        "semester": 4,
-        "level": 5,
-        "xp": 1050,
+        "xp": 980,
         "next_xp": 1400,
-        "intro": "数学与编程基础已过，开始系统学习机器学习和深度学习。",
-    },
-    {
-        "student_id": "20240105",
-        "name": "赵程",
-        "school": "江城大学",
-        "major": "网络工程",
-        "grade": "大二",
-        "semester": 4,
-        "level": 5,
-        "xp": 1010,
-        "next_xp": 1350,
-        "intro": "专注计算机网络、系统原理与网络工程方向。",
-    },
+        "intro": f"{major['college']} ・ {major['category']}",
+    }
+    for index, major in enumerate(MAJORS, start=1)
 ]
+
+DEFAULT_STUDENT_ID = "YY08"  # 计算机科学与技术
+DEFAULT_PASSWORD = "123456"
 
 
 def official_student_ids() -> List[str]:
@@ -78,10 +53,8 @@ def official_student_ids() -> List[str]:
 
 
 def connect() -> sqlite3.Connection:
-    con = sqlite3.connect(DB_PATH)
-    con.row_factory = sqlite3.Row
-    con.execute("PRAGMA foreign_keys = ON")
-    return con
+    # 建画像时要靠外键约束挡住脏引用，所以单独持一条开了 foreign_keys 的长连接
+    return _db.connection(foreign_keys=True)
 
 
 def rows(con: sqlite3.Connection, sql: str, params=()) -> List[Dict[str, Any]]:
@@ -92,241 +65,166 @@ def scalar(con: sqlite3.Connection, sql: str, params=()) -> int:
     return int(con.execute(sql, params).fetchone()[0] or 0)
 
 
-def _profile_pool(con: sqlite3.Connection, major: str) -> List[Dict[str, Any]]:
-    """按专业取真实入库课程，数量不足时再补同专业/通用课程。"""
-    seen: set[str] = set()
-    result: List[Dict[str, Any]] = []
-    exact = rows(
-        con,
-        """
-        SELECT * FROM video
-        WHERE major=? AND source_collected_at IS NOT NULL
-        ORDER BY popularity DESC, rating DESC
-        LIMIT 12
-        """,
-        (major,),
-    )
-    for item in exact:
-        seen.add(item["video_id"])
-        result.append(item)
-    if len(result) < 5:
-        fallback = rows(
-            con,
-            """
-            SELECT * FROM video
-            WHERE source_collected_at IS NOT NULL
-              AND (major IS NULL OR major='' OR major=?)
-            ORDER BY popularity DESC, rating DESC
-            LIMIT 12
-            """,
-            (major,),
-        )
-        for item in fallback:
-            if item["video_id"] not in seen:
-                seen.add(item["video_id"])
-                result.append(item)
-    return result[:6]
-
-
-def _write_profile(con: sqlite3.Connection, account: Dict[str, Any], now: datetime) -> None:
-    pool = _profile_pool(con, account["major"])
-    if not pool:
-        return
-    statuses = [
-        (1.0, "completed"),
-        (0.68, "learning"),
-        (0.42, "learning"),
-        (0.28, "learning"),
-        (0.12, "learning"),
-    ]
-    completed_count = 0
-    for index, (ratio, status) in enumerate(statuses):
-        video = pool[index % len(pool)]
-        episodes = max(1, int(video["episodes"] or 1))
-        watched = episodes if status == "completed" else min(episodes, max(1, int(round(episodes * ratio))))
-        progress = min(1.0, round(watched / episodes, 4))
-        con.execute(
-            """
-            INSERT INTO learning_record (student_id, video_id, watched_episodes, progress, status)
-            VALUES (?,?,?,?,?)
-            ON CONFLICT(student_id, video_id) DO UPDATE SET
-              watched_episodes=excluded.watched_episodes,
-              progress=excluded.progress,
-              status=excluded.status
-            """,
-            (account["student_id"], video["video_id"], watched, progress, status),
-        )
-        created_at = (now - timedelta(days=24 - index * 3)).isoformat(timespec="seconds")
-        if status == "completed":
-            completed_count += 1
-            con.execute(
-                "INSERT OR IGNORE INTO achievement (student_id,video_id,completed_at) VALUES (?,?,?)",
-                (account["student_id"], video["video_id"], created_at),
-            )
-            con.execute(
-                """
-                INSERT INTO behavior_log (student_id,event_type,video_id,duration,created_at)
-                VALUES (?,?,?,?,?)
-                """,
-                (account["student_id"], "complete", video["video_id"], 0, created_at),
-            )
-        else:
-            con.execute(
-                """
-                INSERT INTO behavior_log (student_id,event_type,video_id,duration,created_at)
-                VALUES (?,?,?,?,?)
-                """,
-                (account["student_id"], "play", video["video_id"], 60 * (index + 2), created_at),
-            )
-    con.execute(
-        """
-        INSERT INTO behavior_log (student_id,event_type,video_id,duration,created_at)
-        VALUES (?,?,?,?,?)
-        """,
-        (account["student_id"], "like", pool[0]["video_id"], 0, (now - timedelta(days=2)).isoformat(timespec="seconds")),
-    )
-    con.execute(
-        """
-        INSERT INTO behavior_log (student_id,event_type,video_id,duration,created_at)
-        VALUES (?,?,?,?,?)
-        """,
-        (account["student_id"], "favorite", pool[1 % len(pool)]["video_id"], 0, (now - timedelta(days=1)).isoformat(timespec="seconds")),
-    )
-    xp = int(account["xp"]) + completed_count * 80
-    con.execute(
-        """
-        UPDATE student SET xp=? WHERE student_id=?
-        """,
-        (xp, account["student_id"]),
-    )
-
-
 def _upsert_student(con: sqlite3.Connection, account: Dict[str, Any]) -> None:
     con.execute(
         """
         INSERT INTO student (student_id,name,school,major,grade,semester,level,xp,next_xp)
         VALUES (:student_id,:name,:school,:major,:grade,:semester,:level,:xp,:next_xp)
         ON CONFLICT(student_id) DO UPDATE SET
-          name=excluded.name,
-          school=excluded.school,
-          major=excluded.major,
-          grade=excluded.grade,
-          semester=excluded.semester,
-          level=excluded.level,
-          xp=excluded.xp,
-          next_xp=excluded.next_xp
+          name=excluded.name, school=excluded.school, major=excluded.major,
+          grade=excluded.grade, semester=excluded.semester,
+          level=excluded.level, xp=excluded.xp, next_xp=excluded.next_xp
         """,
         account,
     )
 
 
 def ensure_student_profiles(con: Optional[sqlite3.Connection] = None, sync_recommend: bool = True) -> Dict[str, Any]:
-    """幂等补齐 5 个专业账号；不删除已有学习记录。"""
+    """幂等补齐 25 个专业账号；已有学习记录的账号不会被覆盖。"""
     own_con = con is None
     con = con or connect()
-    now = datetime.now()
-    for account in DEMO_ACCOUNTS:
-        _upsert_student(con, account)
-    for account in DEMO_ACCOUNTS:
-        has_history = scalar(
-            con,
-            "SELECT COUNT(*) FROM learning_record WHERE student_id=?",
-            (account["student_id"],),
-        )
-        if has_history == 0:
-            _write_profile(con, account, now)
-    if sync_recommend:
-        from .live_collectors import sync_recommend_log
+    try:
+        for account in DEMO_ACCOUNTS:
+            _upsert_student(con, account)
+        from .data_expansion import seed_learning_records_for
 
-        sync_recommend_log(con)
-    if own_con:
+        for account in DEMO_ACCOUNTS:
+            has_history = scalar(
+                con,
+                "SELECT COUNT(*) FROM learning_record WHERE student_id=?",
+                (account["student_id"],),
+            )
+            if has_history == 0:
+                seed_learning_records_for(
+                    con, account["student_id"], account["major"], account["semester"]
+                )
+        if sync_recommend:
+            from .live_collectors import sync_recommend_log
+
+            sync_recommend_log(con)
         con.commit()
-        con.close()
-    return account_overview()
+    finally:
+        if own_con:
+            con.close()
+    return account_overview(con if not own_con else None)
 
 
 def rebuild_official_profiles(con: Optional[sqlite3.Connection] = None) -> Dict[str, Any]:
-    """按当前课程库重建 5 个专业画像，用于演示和模型训练前的数据对齐。"""
+    """按当前课程库重建全部专业画像，用于演示前对齐数据。"""
     own_con = con is None
     con = con or connect()
-    now = datetime.now()
-    ids = official_student_ids()
-    placeholders = ",".join("?" * len(ids))
-    con.execute(f"DELETE FROM achievement WHERE student_id IN ({placeholders})", ids)
-    con.execute(f"DELETE FROM learning_record WHERE student_id IN ({placeholders})", ids)
-    con.execute(f"DELETE FROM behavior_log WHERE student_id IN ({placeholders})", ids)
-    con.execute(f"DELETE FROM recommend_log WHERE student_id IN ({placeholders})", ids)
-    for account in DEMO_ACCOUNTS:
-        _upsert_student(con, account)
-        _write_profile(con, account, now)
-    from .live_collectors import sync_recommend_log
+    try:
+        ids = official_student_ids()
+        marks = ",".join("?" * len(ids))
+        for table in ("achievement", "learning_record", "behavior_log", "recommend_log"):
+            con.execute(f"DELETE FROM {table} WHERE student_id IN ({marks})", ids)
+        from .data_expansion import seed_learning_records_for
 
-    sync_recommend_log(con)
-    if own_con:
+        for account in DEMO_ACCOUNTS:
+            _upsert_student(con, account)
+            seed_learning_records_for(
+                con, account["student_id"], account["major"], account["semester"]
+            )
+        from .live_collectors import sync_recommend_log
+
+        sync_recommend_log(con)
         con.commit()
-        con.close()
+    finally:
+        if own_con:
+            con.close()
     return account_overview()
 
 
 def account_overview(con: Optional[sqlite3.Connection] = None) -> Dict[str, Any]:
     own_con = con is None
     con = con or connect()
-    accounts = []
-    for template in DEMO_ACCOUNTS:
-        student_rows = rows(
-            con,
-            "SELECT * FROM student WHERE student_id=?",
-            (template["student_id"],),
-        )
-        if not student_rows:
-            continue
-        student = student_rows[0]
-        learning_count = scalar(
-            con,
-            "SELECT COUNT(*) FROM learning_record WHERE student_id=?",
-            (template["student_id"],),
-        )
-        positive_count = scalar(
-            con,
-            """
-            SELECT COUNT(*) FROM learning_record
-            WHERE student_id=? AND progress>=0.25
-            """,
-            (template["student_id"],),
-        )
-        completed_count = scalar(
-            con,
-            "SELECT COUNT(*) FROM achievement WHERE student_id=?",
-            (template["student_id"],),
-        )
-        major_match_videos = scalar(
-            con,
-            """
-            SELECT COUNT(*) FROM learning_record l
-            JOIN video v ON v.video_id=l.video_id
-            WHERE l.student_id=? AND v.major=?
-            """,
-            (template["student_id"], template["major"]),
-        )
-        accounts.append(
-            {
-                **student,
-                "intro": template["intro"],
-                "learning_count": learning_count,
-                "positive_count": positive_count,
-                "completed_count": completed_count,
-                "major_match_videos": major_match_videos,
-                "password": "123456",
-            }
-        )
-    if own_con:
-        con.close()
-    return {
-        "password": "123456",
-        "student_ids": official_student_ids(),
-        "accounts": accounts,
-        "updated_at": datetime.now().isoformat(timespec="seconds"),
-    }
+    try:
+        # 整个总览一次批量取齐：原实现对每个账号跑 6 条独立查询
+        # （25 个账号 = 150 次往返），这里压成 5 条聚合查询 + 内存拼装。
+        ids = official_student_ids()
+        marks = ",".join("?" * len(ids))
+        students = {
+            row["student_id"]: row
+            for row in rows(con, f"SELECT * FROM student WHERE student_id IN ({marks})", ids)
+        }
+        learning_stats = {
+            row["student_id"]: row
+            for row in rows(
+                con,
+                f"""SELECT student_id, COUNT(*) AS total_count,
+                           SUM(CASE WHEN progress>=0.25 THEN 1 ELSE 0 END) AS positive_count
+                    FROM learning_record WHERE student_id IN ({marks}) GROUP BY student_id""",
+                ids,
+            )
+        }
+        achievement_stats = {
+            row["student_id"]: row["count"]
+            for row in rows(
+                con,
+                f"""SELECT student_id, COUNT(*) AS count FROM achievement
+                    WHERE student_id IN ({marks}) GROUP BY student_id""",
+                ids,
+            )
+        }
+        # 同一门专业的视频数：按 (学生, 视频专业) 分组，等效于原来的逐账号 JOIN 过滤
+        major_match_stats = {
+            (row["student_id"], row["major"]): row["count"]
+            for row in rows(
+                con,
+                """SELECT l.student_id AS student_id, v.major AS major, COUNT(*) AS count
+                   FROM learning_record l JOIN video v ON v.video_id=l.video_id
+                   WHERE v.major IS NOT NULL
+                   GROUP BY l.student_id, v.major""",
+            )
+        }
+        major_lookup = {
+            row["name"]: row
+            for row in rows(
+                con,
+                """SELECT name, college, course_count, resource_count, tuition, total_credits
+                   FROM major""",
+            )
+        }
+
+        accounts = []
+        for template in DEMO_ACCOUNTS:
+            student = students.get(template["student_id"])
+            if not student:
+                continue
+            stats = learning_stats.get(template["student_id"]) or {}
+            learning_count = int(stats.get("total_count") or 0)
+            positive_count = int(stats.get("positive_count") or 0)
+            completed_count = int(achievement_stats.get(template["student_id"]) or 0)
+            major_match_videos = int(
+                major_match_stats.get((template["student_id"], template["major"])) or 0
+            )
+            major_info = major_lookup.get(template["major"]) or {}
+            accounts.append(
+                {
+                    **student,
+                    "intro": template["intro"],
+                    "learning_count": learning_count,
+                    "positive_count": positive_count,
+                    "completed_count": completed_count,
+                    "major_match_videos": major_match_videos,
+                    "college": major_info.get("college", ""),
+                    "course_count": major_info.get("course_count", 0),
+                    "resource_count": major_info.get("resource_count", 0),
+                    "tuition": major_info.get("tuition"),
+                    "total_credits": major_info.get("total_credits"),
+                    "password": DEFAULT_PASSWORD,
+                }
+            )
+        return {
+            "password": DEFAULT_PASSWORD,
+            "default_student_id": DEFAULT_STUDENT_ID,
+            "student_ids": official_student_ids(),
+            "accounts": accounts,
+            "updated_at": datetime.now().isoformat(timespec="seconds"),
+        }
+    finally:
+        if own_con:
+            con.close()
 
 
 def main() -> None:

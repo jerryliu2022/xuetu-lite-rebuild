@@ -76,7 +76,7 @@ def check_models():
     for entry in models_playground.MODELS:
         t0 = time.time()
         try:
-            out = models_playground.run_model(entry["key"], "20240101", 9)
+            out = models_playground.run_model(entry["key"], "YY08", 9)
             ms = round((time.time() - t0) * 1000)
             m = out["metrics"]
             top1 = out["items"][0]["title"][:22] if out["items"] else "(空)"
@@ -102,7 +102,7 @@ def check_students():
     data = models_playground.load_data()
     fail = 0
     seen_top1 = set()
-    for sid in ["20240101", "20240102", "20240103", "20240104", "20240105"]:
+    for sid in ["YY08", "YY09", "YY10", "YY11", "YY12"]:
         try:
             out = models_playground.model_curriculum(data, sid, 9)
             top = out["items"][:3]

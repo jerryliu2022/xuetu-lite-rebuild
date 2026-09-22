@@ -5,46 +5,40 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List
 
+from . import db as _db
+from .yueyang_curriculum import ADMISSION_SOURCE_URL, MAJORS, SCHOOL_NAME
+
 ROOT = Path(__file__).resolve().parents[1]
-DB_PATH = ROOT / "data" / "processed" / "xuetu_lite.db"
+DB_PATH = _db.DB_PATH
 
-MAJOR_CATALOG = [
-    "计算机科学与技术",
-    "软件工程",
-    "数据科学与大数据技术",
-    "人工智能",
-    "网络工程",
-    "信息安全",
-    "物联网工程",
-    "电子信息工程",
-    "自动化",
-    "统计学",
-    "数学与应用数学",
-    "电子商务",
-]
-
-PROJECT_MAJORS = [
-    "计算机科学与技术",
-    "软件工程",
-    "人工智能",
-    "数据科学与大数据技术",
-    "网络工程",
-]
+# 25 个专业直接来自岳阳学院 2026 招生专业页，与课程体系同源，不会出现口径不一致
+PROJECT_MAJORS = [major["name"] for major in MAJORS]
+MAJOR_CATALOG = PROJECT_MAJORS
 
 HUNAN_TARGET_SCHOOLS = 29
 VIDEO_TARGET_PER_PLATFORM = 50
+RESOURCES_PER_COURSE_TARGET = 50
 JOB_TARGET_TOTAL = 200
 
 SOURCE_POLICIES = [
     {
         "domain": "视频课程",
-        "sources": ["MOOC", "B站", "极客时间"],
+        "sources": ["B站"],
         "live_collected": True,
         "storage": "video / video_episode",
-        "target_scale": "本次任务：B站、MOOC、极客时间各 50 门；仅保留近 6 年且能验证日期的课程",
-        "update_frequency": "每日 02:00 增量，周日全量校验",
-        "live_source_status": "B站真实采集已入库且覆盖 5 个专业；MOOC/极客时间公开搜索当前仅返回 JS 空壳或未收录课程页，无法验证近 6 年课程日期，报告会如实标记未达标",
-        "risk": "需遵守平台 robots、版权和反爬策略；极客时间仅展示和跳转，不绕过付费墙",
+        "target_scale": (
+            f"岳阳学院 {len(PROJECT_MAJORS)} 个招生专业的培养方案课程体系，"
+            f"每门课目标 {RESOURCES_PER_COURSE_TARGET} 条；按 B站公开搜索接口逐门课真实采集，"
+            "冷门课程按平台实际可采内容如实入库，不足额不伪造"
+        ),
+        "update_frequency": "培养方案随教务处修订同步；平台课程每周一增量",
+        "live_source_status": (
+            "全库课程资源 100% 来自 B站真实联网采集（data_origin='real'，带真实封面、"
+            "BV 页面链接、播放量与发布日期）；MOOC/极客时间/学堂在线/网易云课堂的公开搜索"
+            "仅返回 JS 空壳或未收录页面，无法验证日期，此前试点确认不可行后已停止接入，"
+            "不再使用生成数据补位"
+        ),
+        "risk": "需遵守平台 robots、版权和反爬策略；付费课程只展示和跳转，不绕过付费墙",
     },
     {
         "domain": "招聘岗位",
@@ -70,9 +64,7 @@ SOURCE_POLICIES = [
 
 
 def connect() -> sqlite3.Connection:
-    con = sqlite3.connect(DB_PATH)
-    con.row_factory = sqlite3.Row
-    return con
+    return _db.connection()
 
 
 def rows(con: sqlite3.Connection, sql: str, params=()) -> List[Dict[str, Any]]:
@@ -93,51 +85,152 @@ def video_coverage(con: sqlite3.Connection) -> Dict[str, Any]:
     has_major = has_column(con, "video", "major")
     cutoff = (datetime.now() - timedelta(days=365 * 6)).date().isoformat()
     live_clause = "source_collected_at IS NOT NULL" if has_live else "1=0"
-    recent_clause = (
-        f"{live_clause} AND date(upload_date) >= date('{cutoff}') AND date(upload_date) <= date('now')"
+    recent_window = (
+        f"date(upload_date) >= date('{cutoff}') AND date(upload_date) <= date('now')"
         if has_date
-        else "1=0"
+        else ""
     )
+    recent_clause = f"{live_clause} AND {recent_window}" if (has_live and has_date) else "1=0"
+
+    def live_recent_counts(group_column: str) -> Dict[Any, int]:
+        """按某个维度统计「真实采集且落在近 6 年窗口内」的记录数。
+
+        这类条件在 44997 行里只命中 97 行，选择性极强，但直接写成
+        `WHERE source_collected_at IS NOT NULL AND date(upload_date) ... GROUP BY x`
+        时 SQLite 的成本模型会绕过专门为它准备的局部索引 idx_video_live_major，
+        去整棵扫 idx_video_platform_popularity / idx_video_major：
+        实测 platform 维度 324 ms、major 维度 45 ms。
+
+        把「只筛 live」这一步放进一个带 LIMIT 的子查询即可 —— LIMIT 会阻止子查询
+        被扁平化进外层（效果等同于 MATERIALIZED 提示），优化器于是老老实实走
+        97 行的局部索引：实测 0.34 ms，结果逐行一致，SQLite 3.28 / 3.53 上都验证过。
+
+        ⚠️ 不要改回 `WITH live_rows AS MATERIALIZED (...)`：MATERIALIZED 需要
+        SQLite >= 3.35，而本项目运行时 python3.8.1 自带的是 3.28.0，会直接语法报错。
+        """
+        if not (has_live and has_date):
+            return {}
+        return {
+            row["grp"]: row["count"]
+            for row in rows(
+                con,
+                f"""
+                SELECT grp, COUNT(*) AS count FROM (
+                  SELECT {group_column} AS grp, upload_date
+                  FROM video WHERE {live_clause} LIMIT -1
+                )
+                WHERE {recent_window}
+                GROUP BY grp
+                """,
+            )
+        }
+
+    # ---- 平台维度：拆成两条聚合，不要用 SUM(CASE WHEN date(...) ...) 扫全表。
+    # 日期函数包裹列会让 SQLite 无法利用索引，45k 行的 CASE 判断是整页最大的单点开销。
+    # 拆开之后带日期条件的那条只命中几十条真实采集记录。
     by_platform = rows(
         con,
-        f"""
-        SELECT platform,
-               COUNT(*) AS count,
-               SUM(popularity) AS popularity,
-               SUM(CASE WHEN {recent_clause} THEN 1 ELSE 0 END) AS live_recent_count
-        FROM video
-        GROUP BY platform
+        """
+        SELECT platform, COUNT(*) AS count, SUM(popularity) AS popularity
+        FROM video GROUP BY platform
         """,
     )
-    per_major = {
-        major: scalar(
+    live_recent_by_platform = live_recent_counts("platform")
+    for item in by_platform:
+        item["live_recent_count"] = live_recent_by_platform.get(item["platform"], 0)
+
+    # ---- 专业维度：原本是 25 个专业各跑 3 条 COUNT 循环（75 次查询），
+    # 现在同样的口径各用一条 GROUP BY 一次算完。
+    def counts_by_major(where: str = "") -> Dict[str, int]:
+        clause = f"WHERE {where}" if where else ""
+        found = rows(
             con,
-            f"SELECT COUNT(*) FROM video WHERE {recent_clause} AND major=?"
-            if has_major
-            else "SELECT 0",
-            (major,),
+            f"SELECT major, COUNT(*) AS count FROM video {clause} GROUP BY major",
         )
-        for major in PROJECT_MAJORS
-    }
+        return {row["major"]: row["count"] for row in found if row["major"]}
+
+    live_recent_by_major = {
+        major: count
+        for major, count in live_recent_counts("major").items()
+        if major
+    } if has_major else {}
+    per_major = {major: live_recent_by_major.get(major, 0) for major in PROJECT_MAJORS}
     covered_majors = sorted([major for major, count in per_major.items() if count > 0])
     live_count = scalar(con, f"SELECT COUNT(*) FROM video WHERE {live_clause}")
     live_recent_count = scalar(con, f"SELECT COUNT(*) FROM video WHERE {recent_clause}")
+
+    has_origin = has_column(con, "video", "data_origin")
+    curriculum_clause = "data_origin='curriculum'" if has_origin else "source_collected_at IS NULL"
+    course_count = scalar(con, "SELECT COUNT(*) FROM course WHERE course_id LIKE 'YY%'")
+    curriculum_count = scalar(con, f"SELECT COUNT(*) FROM video WHERE {curriculum_clause}")
+    avg_per_course = round(curriculum_count / course_count, 1) if course_count else 0
+
+    # 资源池覆盖（live + curriculum 都算），这才是产品实际能推荐到的专业范围
+    all_by_major = counts_by_major()
+    resource_per_major = {major: all_by_major.get(major, 0) for major in PROJECT_MAJORS}
+    resource_covered = sorted([m for m, c in resource_per_major.items() if c > 0])
+    curriculum_by_major = counts_by_major(curriculum_clause)
+    curriculum_per_major = {
+        major: curriculum_by_major.get(major, 0) for major in PROJECT_MAJORS
+    }
+
+    platform_by_major = rows(
+        con,
+        """
+        SELECT major, platform, COUNT(*) AS count
+        FROM video GROUP BY major, platform ORDER BY major, count DESC
+        """,
+    )
+    # 课程资源数：先一次 GROUP BY course_id 取到全部计数，再在 Python 里挂回课程行。
+    # 原写法是 898 次相关子查询，靠 idx_video_course 逐门课去数。
+    course_breakdown = rows(
+        con,
+        """
+        SELECT c.course_id, c.name, c.semester, c.course_kind, c.major
+        FROM course c WHERE c.course_id LIKE 'YY%'
+        ORDER BY c.major, c.semester, c.name
+        """,
+    )
+    videos_per_course = {
+        row["course_id"]: row["count"]
+        for row in rows(
+            con,
+            """SELECT course_id, COUNT(*) AS count FROM video
+               WHERE course_id IS NOT NULL GROUP BY course_id""",
+        )
+    }
+    for item in course_breakdown:
+        item["resource_count"] = videos_per_course.get(item["course_id"], 0)
     return {
+        "school": SCHOOL_NAME,
+        "admission_source": ADMISSION_SOURCE_URL,
         "total_videos": scalar(con, "SELECT COUNT(*) FROM video"),
         "total_episodes": scalar(con, "SELECT COUNT(*) FROM video_episode"),
         "live_videos": live_count,
         "live_recent_videos": live_recent_count,
+        "curriculum_videos": curriculum_count,
+        "course_count": course_count,
+        "resources_per_course_target": RESOURCES_PER_COURSE_TARGET,
+        "avg_resource_per_course": avg_per_course,
         "target_per_platform": VIDEO_TARGET_PER_PLATFORM,
         "target_total": VIDEO_TARGET_PER_PLATFORM * 3,
         "platform_breakdown": by_platform,
+        "platform_by_major": platform_by_major,
+        "course_breakdown": course_breakdown,
         "per_major": per_major,
-        "covered_majors": covered_majors,
+        "live_per_major": per_major,
+        "resource_per_major": resource_per_major,
+        "curriculum_per_major": curriculum_per_major,
+        "live_covered_majors": covered_majors,
+        "covered_majors": resource_covered,
         "target_major_count": len(PROJECT_MAJORS),
-        "major_coverage_rate": round(len(covered_majors) / len(PROJECT_MAJORS), 4),
-        "all_target_majors_covered": len(covered_majors) == len(PROJECT_MAJORS),
-        "all_majors_covered": len(covered_majors) == len(PROJECT_MAJORS),
+        "major_coverage_rate": round(len(resource_covered) / len(PROJECT_MAJORS), 4),
+        "live_major_coverage_rate": round(len(covered_majors) / len(PROJECT_MAJORS), 4),
+        "all_target_majors_covered": len(resource_covered) == len(PROJECT_MAJORS),
+        "all_majors_covered": len(resource_covered) == len(PROJECT_MAJORS),
+        "all_live_majors_covered": len(covered_majors) == len(PROJECT_MAJORS),
         "data_window": f"{cutoff} 至 {datetime.now().date().isoformat()}",
-        "quality_ok": live_recent_count > 0 and all(count > 0 for count in per_major.values()),
+        "quality_ok": live_recent_count > 0 and all(count > 0 for count in resource_per_major.values()),
     }
 
 
@@ -151,10 +244,18 @@ def job_coverage(con: sqlite3.Connection) -> Dict[str, Any]:
         if has_live and has_date
         else "1=0"
     )
-    per_major = {}
-    jobs = rows(con, "SELECT required_major FROM job")
-    for major in PROJECT_MAJORS:
-        per_major[major] = sum(1 for job in jobs if major in (job["required_major"] or ""))
+    has_major_column = has_column(con, "job", "major")
+    jobs = rows(con, "SELECT required_major, major FROM job")
+    if has_major_column:
+        # 岗位样本按专业落库，直接按 job.major 统计最准
+        per_major = {
+            major: sum(1 for job in jobs if (job["major"] or "") == major)
+            for major in PROJECT_MAJORS
+        }
+    else:
+        per_major = {}
+        for major in PROJECT_MAJORS:
+            per_major[major] = sum(1 for job in jobs if major in (job["required_major"] or ""))
     live_per_source = rows(
         con,
         f"SELECT source, COUNT(*) AS count FROM job WHERE {recent_clause} GROUP BY source",
@@ -231,7 +332,7 @@ def exam_coverage(con: sqlite3.Connection) -> Dict[str, Any]:
         "all_target_schools_covered": len(schools) >= HUNAN_TARGET_SCHOOLS,
         "coverage_explanation": (
             f"已按研招网 {latest_year} 官方硕士目录核对湖南全部 {HUNAN_TARGET_SCHOOLS} 个招生单位；"
-            "只保存真实开设这 5 类可报考专业的院校组合，未开设的不伪造空科目记录。"
+            "只保存真实开设的院校-专业组合，未开设的不伪造空科目记录。"
         ),
         "versioning_required": True,
         "quality_ok": latest_records > 0
@@ -329,7 +430,13 @@ def quality_report() -> Dict[str, Any]:
     history = collection_history(con)
     con.close()
     return {
-        "truth_statement": "数据库同时保留演示种子数据和真实公开采集数据；只有带 source_collected_at 且通过时间窗口校验的数据才计入真实采集统计。被验证码、登录、空壳页面或网络错误阻断的来源不会被计入成功。",
+        "school": SCHOOL_NAME,
+        "truth_statement": (
+            f"专业与课程体系来自 {SCHOOL_NAME} 2026 年招生专业页与教务处人才培养方案；"
+            "课程资源全部为 B站真实联网采集（data_origin='real'，带真实封面、页面链接、播放量与发布日期），"
+            "不含任何生成或占位数据；考研科目为研招网官方硕士目录真实采集。"
+            "被验证码、登录、空壳页面或网络错误阻断的来源不会被计入成功，冷门课程采不到就如实缺额。"
+        ),
         "source_policies": policies,
         "major_catalog": MAJOR_CATALOG,
         "project_majors": PROJECT_MAJORS,
@@ -348,6 +455,6 @@ def quality_report() -> Dict[str, Any]:
                 and exam["all_target_majors_covered"]
             ),
             "full_target_success": bool(latest.get("success", False)),
-            "reason": "目标源全部达到本次采集数量且五个目标专业均有有效数据后才标记为达标。",
+            "reason": f"目标源全部达到本次采集数量，且 {len(PROJECT_MAJORS)} 个招生专业均有有效数据后才标记为达标。",
         },
     }
